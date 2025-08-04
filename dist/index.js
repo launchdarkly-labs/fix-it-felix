@@ -30002,7 +30002,10 @@ class ConfigManager {
             return this.config.paths;
         }
         if (this.inputs.paths) {
-            return this.inputs.paths.split(',').map(p => p.trim()).filter(p => p.length > 0);
+            return this.inputs.paths
+                .split(',')
+                .map(p => p.trim())
+                .filter(p => p.length > 0);
         }
         return ['.'];
     }
@@ -30590,7 +30593,12 @@ class MarkdownLintFixer extends base_1.BaseFixer {
             if (cleanPath === '.') {
                 cmd.push('**/*.md');
             }
+            else if (cleanPath.includes('*') || cleanPath.endsWith('.md')) {
+                // Handle glob patterns and specific markdown files
+                cmd.push(cleanPath);
+            }
             else {
+                // Handle directory paths
                 cmd.push(`${cleanPath}/**/*.md`);
             }
         }
@@ -30683,7 +30691,12 @@ class PrettierFixer extends base_1.BaseFixer {
             if (cleanPath === '.') {
                 cmd.push(`**/*.{${extPattern}}`);
             }
+            else if (cleanPath.includes('*') || cleanPath.includes('.')) {
+                // Handle glob patterns and specific files
+                cmd.push(cleanPath);
+            }
             else {
+                // Handle directory paths
                 cmd.push(`${cleanPath}/**/*.{${extPattern}}`);
             }
         }
