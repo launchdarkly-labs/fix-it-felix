@@ -1,0 +1,66 @@
+name: Fix-it Felix Advanced
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Fix-it Felix
+        uses: launchdarkly/fix-it-felix-action@v1
+        with:
+          fixers: 'eslint,prettier,markdownlint'
+          commit_message: '🤖 Fix-it Felix: Automated code quality improvements'
+          config_path: '.felixrc.json'
+          skip_label: 'no-autofix'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dry-run-demo:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == true
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Fix-it Felix (Dry Run for Draft PRs)
+        uses: launchdarkly/fix-it-felix-action@v1
+        with:
+          fixers: 'eslint,prettier,markdownlint'
+          dry_run: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

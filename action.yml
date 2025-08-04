@@ -1,0 +1,48 @@
+name: 'Fix-it Felix'
+description: 'Automatically fixes formatting and linting issues in pull requests'
+author: 'LaunchDarkly'
+branding:
+  icon: 'tool'
+  color: 'blue'
+
+inputs:
+  fixers:
+    description: 'Comma-separated list of fixers to run (e.g., eslint,prettier,markdownlint)'
+    required: false
+    default: 'eslint,prettier'
+  
+  commit_message:
+    description: 'Commit message for auto-fix commits'
+    required: false
+    default: '🤖 Fix-it Felix: Auto-fixed code quality issues'
+  
+  config_path:
+    description: 'Path to Felix configuration file'
+    required: false
+    default: '.felixrc.json'
+  
+  dry_run:
+    description: 'Run in dry-run mode (show diffs in PR comment instead of committing)'
+    required: false
+    default: 'false'
+  
+  skip_label:
+    description: 'PR label that skips Felix processing'
+    required: false
+    default: 'skip-felix'
+  
+  allowed_bots:
+    description: 'Comma-separated list of bot names that Felix should run against (bypasses infinite loop protection)'
+    required: false
+    default: ''
+
+outputs:
+  fixes_applied:
+    description: 'Whether any fixes were applied'
+  
+  changed_files:
+    description: 'List of files that were modified'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

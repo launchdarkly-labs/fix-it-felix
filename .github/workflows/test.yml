@@ -1,0 +1,97 @@
+name: Test Fix-it Felix Action
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build action
+        run: npm run build
+
+      - name: Package action
+        run: npm run package
+
+  test-action:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create test files with issues
+        run: |
+          mkdir -p test-files
+          cat > test-files/test.js << 'EOF'
+          const   x=1;
+          let y= 2   ;
+          console.log(x,y)
+          EOF
+          
+          cat > test-files/test.md << 'EOF'
+          # Test File
+          
+          This is a test file with some   extra spaces.
+          
+          
+          
+          And too many blank lines.
+          EOF
+
+      - name: Setup Node.js for test files
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install test tools
+        run: |
+          npm init -y
+          npm install --save-dev eslint prettier markdownlint-cli2
+
+      - name: Test Fix-it Felix (dry-run)
+        uses: ./
+        with:
+          fixers: 'eslint,prettier,markdownlint'
+          dry_run: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  integration-test:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Test Fix-it Felix (real run)
+        uses: ./
+        with:
+          fixers: 'prettier'
+          commit_message: '🧪 Test commit from Fix-it Felix'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
