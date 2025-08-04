@@ -60,35 +60,39 @@ jobs:
 
 ## 📖 Inputs
 
-| Input | Description | Required | Default |
-|-------|-------------|----------|---------|
-| `fixers` | Comma-separated list of fixers to run | No | `eslint,prettier` |
-| `commit_message` | Commit message for auto-fix commits | No | `🤖 Fix-it Felix: Auto-fixed code quality issues` |
-| `config_path` | Path to Felix configuration file | No | `.felixrc.json` |
-| `dry_run` | Run in dry-run mode (comment instead of commit) | No | `false` |
-| `skip_label` | PR label that skips Felix processing | No | `skip-felix` |
-| `allowed_bots` | Comma-separated list of bot names Felix should run against | No | `` |
+| Input            | Description                                                | Required | Default                                           |
+| ---------------- | ---------------------------------------------------------- | -------- | ------------------------------------------------- |
+| `fixers`         | Comma-separated list of fixers to run                      | No       | `eslint,prettier`                                 |
+| `commit_message` | Commit message for auto-fix commits                        | No       | `🤖 Fix-it Felix: Auto-fixed code quality issues` |
+| `config_path`    | Path to Felix configuration file                           | No       | `.felixrc.json`                                   |
+| `dry_run`        | Run in dry-run mode (comment instead of commit)            | No       | `false`                                           |
+| `skip_label`     | PR label that skips Felix processing                       | No       | `skip-felix`                                      |
+| `allowed_bots`   | Comma-separated list of bot names Felix should run against | No       | ``                                                |
+| `paths`          | Comma-separated list of paths to run fixers on             | No       | `.`                                               |
 
 ## 📤 Outputs
 
-| Output | Description |
-|--------|-------------|
-| `fixes_applied` | Whether any fixes were applied (`true`/`false`) |
+| Output          | Description                                      |
+| --------------- | ------------------------------------------------ |
+| `fixes_applied` | Whether any fixes were applied (`true`/`false`)  |
 | `changed_files` | Comma-separated list of files that were modified |
 
 ## 🔧 Supported Fixers
 
 ### ESLint
+
 - **Command**: `npx eslint --fix .`
 - **Extensions**: `.js`, `.jsx`, `.ts`, `.tsx`, `.vue`
 - **Config**: Respects existing ESLint configuration
 
 ### Prettier
+
 - **Command**: `npx prettier --write`
 - **Extensions**: `.js`, `.jsx`, `.ts`, `.tsx`, `.json`, `.css`, `.scss`, `.md`, `.yml`, `.yaml`
 - **Config**: Respects existing Prettier configuration
 
 ### Markdownlint
+
 - **Command**: `npx markdownlint-cli2 --fix`
 - **Extensions**: `.md`, `.markdown`
 - **Config**: Respects existing Markdownlint configuration
@@ -102,11 +106,44 @@ jobs:
   uses: launchdarkly/fix-it-felix-action@v1
   with:
     fixers: 'eslint,prettier,markdownlint'
+    paths: 'src,docs'
     commit_message: '🤖 Custom commit message'
     config_path: '.custom-felix.json'
     dry_run: false
     skip_label: 'no-autofix'
 ```
+
+### Path Configuration
+
+You can control which directories Felix processes:
+
+**Global Paths (affects all fixers):**
+
+```yaml
+with:
+  paths: 'src,docs,scripts' # Only process these directories
+```
+
+**Per-Fixer Paths (in `.felixrc.json`):**
+
+```json
+{
+  "paths": ["src", "docs"], // Global default
+  "prettier": {
+    "paths": ["src", "docs", "examples"] // Prettier-specific paths
+  },
+  "eslint": {
+    "paths": ["src", "scripts"] // ESLint-specific paths
+  }
+}
+```
+
+**Path Examples:**
+
+- `"."` - Current directory (recursive)
+- `"src"` - Only the src directory (recursive)
+- `"src,docs"` - Both src and docs directories
+- `["docs", "README.md"]` - Specific directory and file
 
 ### Repository Configuration (`.felixrc.json`)
 
@@ -116,13 +153,7 @@ Create a `.felixrc.json` file in your repository root for advanced configuration
 {
   "fixers": ["eslint", "prettier", "markdownlint"],
   "paths": ["src/**/*", "docs/**/*"],
-  "ignore": [
-    "node_modules/**",
-    "dist/**",
-    "build/**",
-    "coverage/**",
-    "*.min.js"
-  ],
+  "ignore": ["node_modules/**", "dist/**", "build/**", "coverage/**", "*.min.js"],
   "eslint": {
     "configFile": ".eslintrc.js",
     "extensions": [".js", ".jsx", ".ts", ".tsx"]
@@ -146,17 +177,20 @@ Create a `.felixrc.json` file in your repository root for advanced configuration
 ## 🛡️ Safety Features
 
 ### Infinite Loop Protection
+
 - Detects commits made by Felix or other bots
 - Skips processing if last commit was automated
 - Prevents endless fix-commit cycles
 - **Exception**: Bots listed in `allowed_bots` will bypass this protection
 
 ### Fork Handling
+
 - Automatically detects forked PRs
 - Skips processing (cannot commit to forks with default token)
 - Logs appropriate messages
 
 ### Skip Mechanisms
+
 - **Label-based**: Add `skip-felix` label to PR
 - **Configuration**: Set `fixers: []` in `.felixrc.json`
 - **Event-based**: Only runs on specific PR events
@@ -176,6 +210,7 @@ Test Felix without committing changes:
 ```
 
 In dry-run mode, Felix will:
+
 - Run all configured fixers
 - Generate a PR comment with proposed changes
 - Not commit or push any changes
@@ -191,25 +226,30 @@ See the [`examples/`](examples/) directory for more workflow examples:
 ## 🔧 Development
 
 ### Prerequisites
+
 - Node.js 20+
 - npm
 
 ### Setup
+
 ```bash
 npm install
 ```
 
 ### Build
+
 ```bash
 npm run build
 ```
 
 ### Test
+
 ```bash
 npm test
 ```
 
 ### Package for Release
+
 ```bash
 npm run package
 ```

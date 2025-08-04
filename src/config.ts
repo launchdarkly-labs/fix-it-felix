@@ -32,12 +32,39 @@ export class ConfigManager {
     if (this.config.fixers && this.config.fixers.length > 0) {
       return this.config.fixers
     }
-    
-    return this.inputs.fixers.split(',').map(f => f.trim()).filter(f => f.length > 0)
+
+    return this.inputs.fixers
+      .split(',')
+      .map(f => f.trim())
+      .filter(f => f.length > 0)
   }
 
   getPaths(): string[] {
-    return this.config.paths || ['.']
+    // Priority: config file > action input > default
+    if (this.config.paths && this.config.paths.length > 0) {
+      return this.config.paths
+    }
+
+    if (this.inputs.paths) {
+      return this.inputs.paths
+        .split(',')
+        .map(p => p.trim())
+        .filter(p => p.length > 0)
+    }
+
+    return ['.']
+  }
+
+  getFixerPaths(fixerName: string): string[] {
+    const fixerConfig = this.getFixerConfig(fixerName)
+
+    // If fixer has specific paths configured, use those
+    if (fixerConfig.paths && fixerConfig.paths.length > 0) {
+      return fixerConfig.paths
+    }
+
+    // Otherwise use global paths
+    return this.getPaths()
   }
 
   getIgnorePatterns(): string[] {
@@ -49,6 +76,9 @@ export class ConfigManager {
   }
 
   getAllowedBots(): string[] {
-    return this.inputs.allowedBots.split(',').map(b => b.trim()).filter(b => b.length > 0)
+    return this.inputs.allowedBots
+      .split(',')
+      .map(b => b.trim())
+      .filter(b => b.length > 0)
   }
 }

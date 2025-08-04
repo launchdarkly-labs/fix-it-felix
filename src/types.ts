@@ -5,6 +5,7 @@ export interface FelixInputs {
   dryRun: boolean
   skipLabel: string
   allowedBots: string
+  paths: string
 }
 
 export interface FelixConfig {
@@ -14,13 +15,16 @@ export interface FelixConfig {
   eslint?: {
     configFile?: string
     extensions?: string[]
+    paths?: string[]
   }
   prettier?: {
     configFile?: string
     extensions?: string[]
+    paths?: string[]
   }
   markdownlint?: {
     configFile?: string
+    paths?: string[]
   }
 }
 

@@ -5,14 +5,18 @@ import { MarkdownLintFixer } from './markdownlint'
 
 export { BaseFixer }
 
-export function createFixer(name: string, config: any = {}): BaseFixer | null {
+export function createFixer(
+  name: string,
+  config: any = {},
+  paths: string[] = ['.']
+): BaseFixer | null {
   switch (name.toLowerCase()) {
     case 'eslint':
-      return new ESLintFixer(config)
+      return new ESLintFixer(config, paths)
     case 'prettier':
-      return new PrettierFixer(config)
+      return new PrettierFixer(config, paths)
     case 'markdownlint':
-      return new MarkdownLintFixer(config)
+      return new MarkdownLintFixer(config, paths)
     default:
       return null
   }
