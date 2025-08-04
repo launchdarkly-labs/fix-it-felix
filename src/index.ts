@@ -10,7 +10,8 @@ async function run(): Promise<void> {
       configPath: core.getInput('config_path'),
       dryRun: core.getBooleanInput('dry_run'),
       skipLabel: core.getInput('skip_label'),
-      allowedBots: core.getInput('allowed_bots')
+      allowedBots: core.getInput('allowed_bots'),
+      paths: core.getInput('paths')
     }
 
     const felix = new FixitFelix(inputs, github.context)

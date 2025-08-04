@@ -40,7 +40,31 @@ export class ConfigManager {
   }
 
   getPaths(): string[] {
-    return this.config.paths || ['.']
+    // Priority: config file > action input > default
+    if (this.config.paths && this.config.paths.length > 0) {
+      return this.config.paths
+    }
+
+    if (this.inputs.paths) {
+      return this.inputs.paths
+        .split(',')
+        .map(p => p.trim())
+        .filter(p => p.length > 0)
+    }
+
+    return ['.']
+  }
+
+  getFixerPaths(fixerName: string): string[] {
+    const fixerConfig = this.getFixerConfig(fixerName)
+
+    // If fixer has specific paths configured, use those
+    if (fixerConfig.paths && fixerConfig.paths.length > 0) {
+      return fixerConfig.paths
+    }
+
+    // Otherwise use global paths
+    return this.getPaths()
   }
 
   getIgnorePatterns(): string[] {

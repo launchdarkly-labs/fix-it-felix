@@ -68,6 +68,7 @@ jobs:
 | `dry_run`        | Run in dry-run mode (comment instead of commit)            | No       | `false`                                           |
 | `skip_label`     | PR label that skips Felix processing                       | No       | `skip-felix`                                      |
 | `allowed_bots`   | Comma-separated list of bot names Felix should run against | No       | ``                                                |
+| `paths`          | Comma-separated list of paths to run fixers on             | No       | `.`                                               |
 
 ## 📤 Outputs
 
@@ -105,11 +106,41 @@ jobs:
   uses: launchdarkly/fix-it-felix-action@v1
   with:
     fixers: 'eslint,prettier,markdownlint'
+    paths: 'src,docs'
     commit_message: '🤖 Custom commit message'
     config_path: '.custom-felix.json'
     dry_run: false
     skip_label: 'no-autofix'
 ```
+
+### Path Configuration
+
+You can control which directories Felix processes:
+
+**Global Paths (affects all fixers):**
+```yaml
+with:
+  paths: 'src,docs,scripts'  # Only process these directories
+```
+
+**Per-Fixer Paths (in `.felixrc.json`):**
+```json
+{
+  "paths": ["src", "docs"],           // Global default
+  "prettier": {
+    "paths": ["src", "docs", "examples"]  // Prettier-specific paths
+  },
+  "eslint": {
+    "paths": ["src", "scripts"]       // ESLint-specific paths  
+  }
+}
+```
+
+**Path Examples:**
+- `"."` - Current directory (recursive)
+- `"src"` - Only the src directory (recursive)
+- `"src,docs"` - Both src and docs directories
+- `["docs", "README.md"]` - Specific directory and file
 
 ### Repository Configuration (`.felixrc.json`)
 

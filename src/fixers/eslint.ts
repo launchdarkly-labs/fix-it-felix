@@ -3,8 +3,8 @@ import * as exec from '@actions/exec'
 import { BaseFixer } from './base'
 
 export class ESLintFixer extends BaseFixer {
-  constructor(config: any = {}) {
-    super('eslint', config)
+  constructor(config: any = {}, paths: string[] = ['.']) {
+    super('eslint', config, paths)
   }
 
   async isAvailable(): Promise<boolean> {
@@ -35,8 +35,11 @@ export class ESLintFixer extends BaseFixer {
       cmd.push('--ext', this.config.extensions.join(','))
     }
 
-    // Add fix flag and target paths
-    cmd.push('--fix', '.')
+    // Add fix flag
+    cmd.push('--fix')
+
+    // Add configured paths
+    cmd.push(...this.paths)
 
     return cmd
   }

@@ -3,8 +3,8 @@ import * as exec from '@actions/exec'
 import { BaseFixer } from './base'
 
 export class PrettierFixer extends BaseFixer {
-  constructor(config: any = {}) {
-    super('prettier', config)
+  constructor(config: any = {}, paths: string[] = ['.']) {
+    super('prettier', config, paths)
   }
 
   async isAvailable(): Promise<boolean> {
@@ -30,13 +30,26 @@ export class PrettierFixer extends BaseFixer {
       cmd.push('--config', this.config.configFile)
     }
 
-    // Add write flag and target patterns
+    // Add write flag
     cmd.push('--write')
 
-    // Add file patterns based on extensions
+    // Generate file patterns based on configured paths and extensions
     const extensions = this.getExtensions()
-    const patterns = extensions.map(ext => `**/*${ext}`).join(',')
-    cmd.push(`**/*.{${extensions.map(ext => ext.slice(1)).join(',')}}`)
+    const extPattern = extensions.map(ext => ext.slice(1)).join(',')
+
+    // Create patterns for each configured path
+    for (const path of this.paths) {
+      const cleanPath = path.endsWith('/') ? path.slice(0, -1) : path
+      if (cleanPath === '.') {
+        cmd.push(`**/*.{${extPattern}}`)
+      } else if (cleanPath.includes('*') || cleanPath.includes('.')) {
+        // Handle glob patterns and specific files
+        cmd.push(cleanPath)
+      } else {
+        // Handle directory paths
+        cmd.push(`${cleanPath}/**/*.{${extPattern}}`)
+      }
+    }
 
     return cmd
   }

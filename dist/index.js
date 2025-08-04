@@ -29997,7 +29997,23 @@ class ConfigManager {
             .filter(f => f.length > 0);
     }
     getPaths() {
-        return this.config.paths || ['.'];
+        // Priority: config file > action input > default
+        if (this.config.paths && this.config.paths.length > 0) {
+            return this.config.paths;
+        }
+        if (this.inputs.paths) {
+            return this.inputs.paths.split(',').map(p => p.trim()).filter(p => p.length > 0);
+        }
+        return ['.'];
+    }
+    getFixerPaths(fixerName) {
+        const fixerConfig = this.getFixerConfig(fixerName);
+        // If fixer has specific paths configured, use those
+        if (fixerConfig.paths && fixerConfig.paths.length > 0) {
+            return fixerConfig.paths;
+        }
+        // Otherwise use global paths
+        return this.getPaths();
     }
     getIgnorePatterns() {
         return this.config.ignore || ['node_modules/**', 'dist/**', 'build/**', '.git/**'];
@@ -30092,7 +30108,8 @@ class FixitFelix {
                 core.warning(`⚠️ Unknown fixer: ${fixerName}`);
                 continue;
             }
-            const fixer = (0, fixers_1.createFixer)(fixerName, this.config.getFixerConfig(fixerName));
+            const fixerPaths = this.config.getFixerPaths(fixerName);
+            const fixer = (0, fixers_1.createFixer)(fixerName, this.config.getFixerConfig(fixerName), fixerPaths);
             if (!fixer) {
                 core.warning(`⚠️ Could not create fixer: ${fixerName}`);
                 continue;
@@ -30313,9 +30330,10 @@ exports.BaseFixer = void 0;
 const core = __importStar(__nccwpck_require__(7484));
 const exec = __importStar(__nccwpck_require__(5236));
 class BaseFixer {
-    constructor(name, config = {}) {
+    constructor(name, config = {}, paths = ['.']) {
         this.name = name;
         this.config = config;
+        this.paths = paths;
     }
     async run() {
         const result = {
@@ -30425,8 +30443,8 @@ const fs = __importStar(__nccwpck_require__(9896));
 const exec = __importStar(__nccwpck_require__(5236));
 const base_1 = __nccwpck_require__(9164);
 class ESLintFixer extends base_1.BaseFixer {
-    constructor(config = {}) {
-        super('eslint', config);
+    constructor(config = {}, paths = ['.']) {
+        super('eslint', config, paths);
     }
     async isAvailable() {
         try {
@@ -30452,8 +30470,10 @@ class ESLintFixer extends base_1.BaseFixer {
         if (this.config.extensions) {
             cmd.push('--ext', this.config.extensions.join(','));
         }
-        // Add fix flag and target paths
-        cmd.push('--fix', '.');
+        // Add fix flag
+        cmd.push('--fix');
+        // Add configured paths
+        cmd.push(...this.paths);
         return cmd;
     }
     getExtensions() {
@@ -30478,14 +30498,14 @@ Object.defineProperty(exports, "BaseFixer", ({ enumerable: true, get: function (
 const eslint_1 = __nccwpck_require__(4592);
 const prettier_1 = __nccwpck_require__(7294);
 const markdownlint_1 = __nccwpck_require__(8294);
-function createFixer(name, config = {}) {
+function createFixer(name, config = {}, paths = ['.']) {
     switch (name.toLowerCase()) {
         case 'eslint':
-            return new eslint_1.ESLintFixer(config);
+            return new eslint_1.ESLintFixer(config, paths);
         case 'prettier':
-            return new prettier_1.PrettierFixer(config);
+            return new prettier_1.PrettierFixer(config, paths);
         case 'markdownlint':
-            return new markdownlint_1.MarkdownLintFixer(config);
+            return new markdownlint_1.MarkdownLintFixer(config, paths);
         default:
             return null;
     }
@@ -30539,8 +30559,8 @@ const fs = __importStar(__nccwpck_require__(9896));
 const exec = __importStar(__nccwpck_require__(5236));
 const base_1 = __nccwpck_require__(9164);
 class MarkdownLintFixer extends base_1.BaseFixer {
-    constructor(config = {}) {
-        super('markdownlint', config);
+    constructor(config = {}, paths = ['.']) {
+        super('markdownlint', config, paths);
     }
     async isAvailable() {
         try {
@@ -30562,8 +30582,18 @@ class MarkdownLintFixer extends base_1.BaseFixer {
         if (this.config.configFile) {
             cmd.push('--config', this.config.configFile);
         }
-        // Add fix flag and target pattern
-        cmd.push('--fix', '**/*.md');
+        // Add fix flag
+        cmd.push('--fix');
+        // Generate patterns for each configured path
+        for (const path of this.paths) {
+            const cleanPath = path.endsWith('/') ? path.slice(0, -1) : path;
+            if (cleanPath === '.') {
+                cmd.push('**/*.md');
+            }
+            else {
+                cmd.push(`${cleanPath}/**/*.md`);
+            }
+        }
         return cmd;
     }
     getExtensions() {
@@ -30619,8 +30649,8 @@ const fs = __importStar(__nccwpck_require__(9896));
 const exec = __importStar(__nccwpck_require__(5236));
 const base_1 = __nccwpck_require__(9164);
 class PrettierFixer extends base_1.BaseFixer {
-    constructor(config = {}) {
-        super('prettier', config);
+    constructor(config = {}, paths = ['.']) {
+        super('prettier', config, paths);
     }
     async isAvailable() {
         try {
@@ -30642,12 +30672,21 @@ class PrettierFixer extends base_1.BaseFixer {
         if (this.config.configFile) {
             cmd.push('--config', this.config.configFile);
         }
-        // Add write flag and target patterns
+        // Add write flag
         cmd.push('--write');
-        // Add file patterns based on extensions
+        // Generate file patterns based on configured paths and extensions
         const extensions = this.getExtensions();
-        const patterns = extensions.map(ext => `**/*${ext}`).join(',');
-        cmd.push(`**/*.{${extensions.map(ext => ext.slice(1)).join(',')}}`);
+        const extPattern = extensions.map(ext => ext.slice(1)).join(',');
+        // Create patterns for each configured path
+        for (const path of this.paths) {
+            const cleanPath = path.endsWith('/') ? path.slice(0, -1) : path;
+            if (cleanPath === '.') {
+                cmd.push(`**/*.{${extPattern}}`);
+            }
+            else {
+                cmd.push(`${cleanPath}/**/*.{${extPattern}}`);
+            }
+        }
         return cmd;
     }
     getExtensions() {
@@ -30720,7 +30759,8 @@ async function run() {
             configPath: core.getInput('config_path'),
             dryRun: core.getBooleanInput('dry_run'),
             skipLabel: core.getInput('skip_label'),
-            allowedBots: core.getInput('allowed_bots')
+            allowedBots: core.getInput('allowed_bots'),
+            paths: core.getInput('paths')
         };
         const felix = new felix_1.FixitFelix(inputs, github.context);
         const result = await felix.run();

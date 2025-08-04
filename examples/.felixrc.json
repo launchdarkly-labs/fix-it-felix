@@ -1,16 +1,19 @@
 {
   "fixers": ["eslint", "prettier", "markdownlint"],
-  "paths": ["src/**/*", "docs/**/*"],
+  "paths": ["src", "docs"],
   "ignore": ["node_modules/**", "dist/**", "build/**", "coverage/**", "*.min.js"],
   "eslint": {
     "configFile": ".eslintrc.js",
-    "extensions": [".js", ".jsx", ".ts", ".tsx"]
+    "extensions": [".js", ".jsx", ".ts", ".tsx"],
+    "paths": ["src", "scripts"]
   },
   "prettier": {
     "configFile": ".prettierrc",
-    "extensions": [".js", ".jsx", ".ts", ".tsx", ".json", ".css", ".scss", ".md"]
+    "extensions": [".js", ".jsx", ".ts", ".tsx", ".json", ".css", ".scss", ".md"],
+    "paths": ["src", "docs", "examples"]
   },
   "markdownlint": {
-    "configFile": ".markdownlint.json"
+    "configFile": ".markdownlint.json",
+    "paths": ["docs", "README.md"]
   }
 }

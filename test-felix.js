@@ -14,6 +14,7 @@ process.env.INPUT_CONFIG_PATH = '.felixrc.json'
 process.env.INPUT_DRY_RUN = 'true'
 process.env.INPUT_SKIP_LABEL = 'skip-felix'
 process.env.INPUT_ALLOWED_BOTS = 'dependabot,renovate'
+process.env.INPUT_PATHS = ''  // Use config file paths
 
 // Set GitHub context (minimal)
 process.env.GITHUB_REPOSITORY = 'test/repo'

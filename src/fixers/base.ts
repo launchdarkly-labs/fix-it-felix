@@ -5,10 +5,12 @@ import { FixerResult } from '../types'
 export abstract class BaseFixer {
   protected name: string
   protected config: any
+  protected paths: string[]
 
-  constructor(name: string, config: any = {}) {
+  constructor(name: string, config: any = {}, paths: string[] = ['.']) {
     this.name = name
     this.config = config
+    this.paths = paths
   }
 
   abstract isAvailable(): Promise<boolean>

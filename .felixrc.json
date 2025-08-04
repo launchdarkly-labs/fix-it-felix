@@ -1,0 +1,9 @@
+{
+  "fixers": ["prettier"],
+  "paths": ["src", "examples", "test-files", "*.md", "*.yml", "*.js"],
+  "ignore": ["node_modules/**", "dist/**", "build/**", ".git/**"],
+  "prettier": {
+    "configFile": ".prettierrc",
+    "extensions": [".js", ".jsx", ".ts", ".tsx", ".json", ".css", ".scss", ".md", ".yml", ".yaml"]
+  }
+}

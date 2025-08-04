@@ -18,4 +18,5 @@ return badFormat;
 }
 
 // Missing semicolon for testing
-const testVar = "intentionally formatted poorly"test change for path testing
+const testVar = "intentionally formatted poorly";
+// test change for path testing

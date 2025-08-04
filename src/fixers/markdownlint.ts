@@ -3,8 +3,8 @@ import * as exec from '@actions/exec'
 import { BaseFixer } from './base'
 
 export class MarkdownLintFixer extends BaseFixer {
-  constructor(config: any = {}) {
-    super('markdownlint', config)
+  constructor(config: any = {}, paths: string[] = ['.']) {
+    super('markdownlint', config, paths)
   }
 
   async isAvailable(): Promise<boolean> {
@@ -30,8 +30,18 @@ export class MarkdownLintFixer extends BaseFixer {
       cmd.push('--config', this.config.configFile)
     }
 
-    // Add fix flag and target pattern
-    cmd.push('--fix', '**/*.md')
+    // Add fix flag
+    cmd.push('--fix')
+
+    // Generate patterns for each configured path
+    for (const path of this.paths) {
+      const cleanPath = path.endsWith('/') ? path.slice(0, -1) : path
+      if (cleanPath === '.') {
+        cmd.push('**/*.md')
+      } else {
+        cmd.push(`${cleanPath}/**/*.md`)
+      }
+    }
 
     return cmd
   }
