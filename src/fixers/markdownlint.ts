@@ -38,7 +38,11 @@ export class MarkdownLintFixer extends BaseFixer {
       const cleanPath = path.endsWith('/') ? path.slice(0, -1) : path
       if (cleanPath === '.') {
         cmd.push('**/*.md')
+      } else if (cleanPath.includes('*') || cleanPath.endsWith('.md')) {
+        // Handle glob patterns and specific markdown files
+        cmd.push(cleanPath)
       } else {
+        // Handle directory paths
         cmd.push(`${cleanPath}/**/*.md`)
       }
     }
