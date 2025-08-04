@@ -2,10 +2,7 @@ module.exports = {
   root: true,
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint'],
-  extends: [
-    'eslint:recommended',
-    '@typescript-eslint/recommended'
-  ],
+  extends: ['eslint:recommended', '@typescript-eslint/recommended'],
   env: {
     node: true,
     es2020: true
@@ -16,9 +13,5 @@ module.exports = {
     'prefer-const': 'error',
     'no-var': 'error'
   },
-  ignorePatterns: [
-    'dist/',
-    'node_modules/',
-    '*.js'
-  ]
+  ignorePatterns: ['dist/', 'node_modules/', '*.js']
 }

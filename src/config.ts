@@ -32,8 +32,11 @@ export class ConfigManager {
     if (this.config.fixers && this.config.fixers.length > 0) {
       return this.config.fixers
     }
-    
-    return this.inputs.fixers.split(',').map(f => f.trim()).filter(f => f.length > 0)
+
+    return this.inputs.fixers
+      .split(',')
+      .map(f => f.trim())
+      .filter(f => f.length > 0)
   }
 
   getPaths(): string[] {
@@ -49,6 +52,9 @@ export class ConfigManager {
   }
 
   getAllowedBots(): string[] {
-    return this.inputs.allowedBots.split(',').map(b => b.trim()).filter(b => b.length > 0)
+    return this.inputs.allowedBots
+      .split(',')
+      .map(b => b.trim())
+      .filter(b => b.length > 0)
   }
 }

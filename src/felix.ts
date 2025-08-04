@@ -117,12 +117,12 @@ export class FixitFelix {
 
       // Get allowed bots from configuration
       const allowedBots = this.config.getAllowedBots()
-      
+
       // Check if this author is in the allowed bots list
-      const isAllowedBot = allowedBots.some(allowedBot => 
+      const isAllowedBot = allowedBots.some(allowedBot =>
         lastAuthor.toLowerCase().includes(allowedBot.toLowerCase())
       )
-      
+
       if (isAllowedBot) {
         core.info(`Last commit was by allowed bot: ${lastAuthor} - proceeding with fixes`)
         return false
@@ -130,7 +130,7 @@ export class FixitFelix {
 
       // Check if the last commit was made by Felix or other bots
       const felixIndicators = ['fix-it-felix', 'felix', 'github-actions', 'bot']
-      const isLastCommitByFelix = felixIndicators.some(indicator => 
+      const isLastCommitByFelix = felixIndicators.some(indicator =>
         lastAuthor.toLowerCase().includes(indicator)
       )
 
@@ -186,7 +186,7 @@ export class FixitFelix {
 
       // Create commit
       await exec.exec('git', ['commit', '-m', this.inputs.commitMessage])
-      
+
       // Push changes
       await exec.exec('git', ['push'])
 

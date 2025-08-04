@@ -1,0 +1,76 @@
+name: Test Allowed Bots Feature
+
+on:
+  workflow_dispatch:
+    inputs:
+      bot_name:
+        description: 'Bot name to simulate'
+        required: true
+        default: 'dependabot'
+        type: string
+
+jobs:
+  simulate-bot-commit:
+    runs-on: ubuntu-latest
+    name: Simulate Bot Commit and Test Felix
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build action
+        run: npm run build
+
+      - name: Create test file with formatting issues
+        run: |
+          mkdir -p test-ci
+          cat > test-ci/bad-format-ci.js << 'EOF'
+          const badFunction = function(param1,param2){
+          var unused = 'unused';
+            let obj =    {
+              a:1,b:2,
+              c   : 3};
+              
+          if(param1===param2)
+          {
+          console.log("bad formatting")
+          }
+          return obj;
+          }
+          EOF
+
+      - name: Configure git as bot
+        run: |
+          git config user.name "${{ inputs.bot_name }}[bot]"
+          git config user.email "${{ inputs.bot_name }}@users.noreply.github.com"
+
+      - name: Commit as bot
+        run: |
+          git add test-ci/
+          git commit -m "chore: add test file from ${{ inputs.bot_name }}"
+
+      - name: Test Felix with Bot Commit (Dry Run)
+        uses: ./
+        with:
+          fixers: 'prettier'
+          dry_run: true
+          allowed_bots: 'dependabot,renovate,github-actions'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean up test files
+        run: |
+          git rm -rf test-ci/
+          git commit -m "cleanup: remove test files"
+        if: always()

@@ -46,16 +46,15 @@ export abstract class BaseFixer {
       }
 
       const exitCode = await exec.exec(command[0], command.slice(1), options)
-      
+
       result.output = output
       result.success = exitCode === 0
-      
+
       if (!result.success) {
         result.error = `${this.name} exited with code ${exitCode}`
       }
 
       result.changedFiles = await this.getChangedFiles()
-      
     } catch (error) {
       result.error = error instanceof Error ? error.message : String(error)
     }
@@ -73,8 +72,11 @@ export abstract class BaseFixer {
           }
         }
       })
-      
-      return output.trim().split('\n').filter(file => file.length > 0)
+
+      return output
+        .trim()
+        .split('\n')
+        .filter(file => file.length > 0)
     } catch {
       return []
     }

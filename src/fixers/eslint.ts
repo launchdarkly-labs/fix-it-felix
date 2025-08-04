@@ -13,7 +13,7 @@ export class ESLintFixer extends BaseFixer {
       if (fs.existsSync('node_modules/.bin/eslint')) {
         return true
       }
-      
+
       // Check if eslint is globally available
       await exec.exec('npx', ['eslint', '--version'], { silent: true })
       return true
@@ -24,20 +24,20 @@ export class ESLintFixer extends BaseFixer {
 
   getCommand(): string[] {
     const cmd = ['npx', 'eslint']
-    
+
     // Add config file if specified
     if (this.config.configFile) {
       cmd.push('-c', this.config.configFile)
     }
-    
+
     // Add extensions if specified
     if (this.config.extensions) {
       cmd.push('--ext', this.config.extensions.join(','))
     }
-    
+
     // Add fix flag and target paths
     cmd.push('--fix', '.')
-    
+
     return cmd
   }
 

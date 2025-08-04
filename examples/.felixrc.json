@@ -1,13 +1,7 @@
 {
   "fixers": ["eslint", "prettier", "markdownlint"],
   "paths": ["src/**/*", "docs/**/*"],
-  "ignore": [
-    "node_modules/**",
-    "dist/**",
-    "build/**",
-    "coverage/**",
-    "*.min.js"
-  ],
+  "ignore": ["node_modules/**", "dist/**", "build/**", "coverage/**", "*.min.js"],
   "eslint": {
     "configFile": ".eslintrc.js",
     "extensions": [".js", ".jsx", ".ts", ".tsx"]
