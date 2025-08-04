@@ -33,10 +33,10 @@ describe('Fixer Factory', () => {
     it('should pass config and paths to fixer constructor', () => {
       const config = { configFile: '.custom' }
       const paths = ['src', 'docs']
-      
+
       const fixer = createFixer('prettier', config, paths)
       expect(fixer).toBeInstanceOf(PrettierFixer)
-      
+
       // Check that paths are passed correctly by examining the command
       const command = fixer!.getCommand()
       expect(command).toContain('src/**/*.{js,jsx,ts,tsx,json,css,scss,md,yml,yaml}')
@@ -56,7 +56,7 @@ describe('PrettierFixer', () => {
     it('should generate correct command with default paths', () => {
       const fixer = new PrettierFixer()
       const command = fixer.getCommand()
-      
+
       expect(command[0]).toBe('npx')
       expect(command[1]).toBe('prettier')
       expect(command).toContain('--write')
@@ -67,7 +67,7 @@ describe('PrettierFixer', () => {
       const config = { configFile: '.prettierrc.custom' }
       const fixer = new PrettierFixer(config)
       const command = fixer.getCommand()
-      
+
       expect(command).toContain('--config')
       expect(command).toContain('.prettierrc.custom')
     })
@@ -76,7 +76,7 @@ describe('PrettierFixer', () => {
       const paths = ['src', 'docs']
       const fixer = new PrettierFixer({}, paths)
       const command = fixer.getCommand()
-      
+
       expect(command).toContain('src/**/*.{js,jsx,ts,tsx,json,css,scss,md,yml,yaml}')
       expect(command).toContain('docs/**/*.{js,jsx,ts,tsx,json,css,scss,md,yml,yaml}')
     })
@@ -85,7 +85,7 @@ describe('PrettierFixer', () => {
       const paths = ['README.md', '*.js', 'src']
       const fixer = new PrettierFixer({}, paths)
       const command = fixer.getCommand()
-      
+
       expect(command).toContain('README.md')
       expect(command).toContain('*.js')
       expect(command).toContain('src/**/*.{js,jsx,ts,tsx,json,css,scss,md,yml,yaml}')
@@ -95,7 +95,7 @@ describe('PrettierFixer', () => {
       const config = { extensions: ['.js', '.css'] }
       const fixer = new PrettierFixer(config)
       const command = fixer.getCommand()
-      
+
       expect(command).toContain('**/*.{js,css}')
     })
   })
@@ -104,10 +104,18 @@ describe('PrettierFixer', () => {
     it('should return default extensions', () => {
       const fixer = new PrettierFixer()
       const extensions = fixer.getExtensions()
-      
+
       expect(extensions).toEqual([
-        '.js', '.jsx', '.ts', '.tsx', '.json', 
-        '.css', '.scss', '.md', '.yml', '.yaml'
+        '.js',
+        '.jsx',
+        '.ts',
+        '.tsx',
+        '.json',
+        '.css',
+        '.scss',
+        '.md',
+        '.yml',
+        '.yaml'
       ])
     })
 
@@ -115,7 +123,7 @@ describe('PrettierFixer', () => {
       const config = { extensions: ['.js', '.css'] }
       const fixer = new PrettierFixer(config)
       const extensions = fixer.getExtensions()
-      
+
       expect(extensions).toEqual(['.js', '.css'])
     })
   })
@@ -126,7 +134,7 @@ describe('ESLintFixer', () => {
     it('should generate correct command with default paths', () => {
       const fixer = new ESLintFixer()
       const command = fixer.getCommand()
-      
+
       expect(command[0]).toBe('npx')
       expect(command[1]).toBe('eslint')
       expect(command).toContain('--fix')
@@ -137,7 +145,7 @@ describe('ESLintFixer', () => {
       const config = { configFile: '.eslintrc.custom.js' }
       const fixer = new ESLintFixer(config)
       const command = fixer.getCommand()
-      
+
       expect(command).toContain('-c')
       expect(command).toContain('.eslintrc.custom.js')
     })
@@ -146,7 +154,7 @@ describe('ESLintFixer', () => {
       const config = { extensions: ['.js', '.ts'] }
       const fixer = new ESLintFixer(config)
       const command = fixer.getCommand()
-      
+
       expect(command).toContain('--ext')
       expect(command).toContain('.js,.ts')
     })
@@ -155,7 +163,7 @@ describe('ESLintFixer', () => {
       const paths = ['src', 'scripts']
       const fixer = new ESLintFixer({}, paths)
       const command = fixer.getCommand()
-      
+
       expect(command).toContain('src')
       expect(command).toContain('scripts')
     })
@@ -165,7 +173,7 @@ describe('ESLintFixer', () => {
     it('should return default extensions', () => {
       const fixer = new ESLintFixer()
       const extensions = fixer.getExtensions()
-      
+
       expect(extensions).toEqual(['.js', '.jsx', '.ts', '.tsx', '.vue'])
     })
 
@@ -173,7 +181,7 @@ describe('ESLintFixer', () => {
       const config = { extensions: ['.js', '.ts'] }
       const fixer = new ESLintFixer(config)
       const extensions = fixer.getExtensions()
-      
+
       expect(extensions).toEqual(['.js', '.ts'])
     })
   })
@@ -184,7 +192,7 @@ describe('MarkdownLintFixer', () => {
     it('should generate correct command with default paths', () => {
       const fixer = new MarkdownLintFixer()
       const command = fixer.getCommand()
-      
+
       expect(command[0]).toBe('npx')
       expect(command[1]).toBe('markdownlint-cli2')
       expect(command).toContain('--fix')
@@ -195,7 +203,7 @@ describe('MarkdownLintFixer', () => {
       const config = { configFile: '.markdownlint.custom.json' }
       const fixer = new MarkdownLintFixer(config)
       const command = fixer.getCommand()
-      
+
       expect(command).toContain('--config')
       expect(command).toContain('.markdownlint.custom.json')
     })
@@ -204,7 +212,7 @@ describe('MarkdownLintFixer', () => {
       const paths = ['docs', 'guides']
       const fixer = new MarkdownLintFixer({}, paths)
       const command = fixer.getCommand()
-      
+
       expect(command).toContain('docs/**/*.md')
       expect(command).toContain('guides/**/*.md')
     })
@@ -213,7 +221,7 @@ describe('MarkdownLintFixer', () => {
       const paths = ['README.md', 'docs']
       const fixer = new MarkdownLintFixer({}, paths)
       const command = fixer.getCommand()
-      
+
       expect(command).toContain('README.md')
       expect(command).toContain('docs/**/*.md')
     })
@@ -223,7 +231,7 @@ describe('MarkdownLintFixer', () => {
     it('should return markdown extensions', () => {
       const fixer = new MarkdownLintFixer()
       const extensions = fixer.getExtensions()
-      
+
       expect(extensions).toEqual(['.md', '.markdown'])
     })
   })

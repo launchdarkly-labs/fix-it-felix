@@ -118,25 +118,28 @@ jobs:
 You can control which directories Felix processes:
 
 **Global Paths (affects all fixers):**
+
 ```yaml
 with:
-  paths: 'src,docs,scripts'  # Only process these directories
+  paths: 'src,docs,scripts' # Only process these directories
 ```
 
 **Per-Fixer Paths (in `.felixrc.json`):**
+
 ```json
 {
-  "paths": ["src", "docs"],           // Global default
+  "paths": ["src", "docs"], // Global default
   "prettier": {
-    "paths": ["src", "docs", "examples"]  // Prettier-specific paths
+    "paths": ["src", "docs", "examples"] // Prettier-specific paths
   },
   "eslint": {
-    "paths": ["src", "scripts"]       // ESLint-specific paths  
+    "paths": ["src", "scripts"] // ESLint-specific paths
   }
 }
 ```
 
 **Path Examples:**
+
 - `"."` - Current directory (recursive)
 - `"src"` - Only the src directory (recursive)
 - `"src,docs"` - Both src and docs directories

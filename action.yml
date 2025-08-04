@@ -35,7 +35,7 @@ inputs:
     description: 'Comma-separated list of bot names that Felix should run against (bypasses infinite loop protection)'
     required: false
     default: ''
-  
+
   paths:
     description: 'Comma-separated list of paths to run fixers on (e.g., src,docs)'
     required: false

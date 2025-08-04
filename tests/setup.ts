@@ -11,7 +11,7 @@ global.console = {
   ...console,
   info: jest.fn(),
   warn: jest.fn(),
-  error: jest.fn(),
+  error: jest.fn()
 }
 
 // Mock core.info, core.warning, etc.

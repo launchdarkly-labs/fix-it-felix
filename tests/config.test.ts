@@ -222,7 +222,12 @@ describe('ConfigManager', () => {
       mockFs.existsSync.mockReturnValue(false)
 
       const manager = new ConfigManager(defaultInputs)
-      expect(manager.getIgnorePatterns()).toEqual(['node_modules/**', 'dist/**', 'build/**', '.git/**'])
+      expect(manager.getIgnorePatterns()).toEqual([
+        'node_modules/**',
+        'dist/**',
+        'build/**',
+        '.git/**'
+      ])
     })
   })
 
