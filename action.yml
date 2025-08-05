@@ -39,7 +39,6 @@ inputs:
   paths:
     description: 'Comma-separated list of paths to run fixers on (e.g., src,docs)'
     required: false
-    default: '.'
 
 outputs:
   fixes_applied:
