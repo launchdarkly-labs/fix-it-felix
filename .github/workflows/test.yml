@@ -74,6 +74,7 @@ jobs:
         with:
           fixers: 'eslint,prettier,markdownlint'
           dry_run: true
+          paths: 'test-files'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
