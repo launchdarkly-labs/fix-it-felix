@@ -32,7 +32,8 @@ jobs:
       - name: Package action
         run: npm run package
 
-  test-action:
+  # Dogfood: Use Felix on this repo itself
+  dogfood:
     runs-on: ubuntu-latest
     needs: test
 
@@ -40,16 +41,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create test files with issues
+      - name: Test Fix-it Felix on this repo (dogfood)
+        uses: ./
+        with:
+          dry_run: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Test functionality: Verify Felix detects formatting issues
+  test-functionality:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create test files with intentional issues
         run: |
-          mkdir -p test-files
-          cat > test-files/test.js << 'EOF'
+          mkdir temp-test
+          cat > temp-test/bad.js << 'EOF'
           const   x=1;
           let y= 2   ;
           console.log(x,y)
           EOF
 
-          cat > test-files/test.md << 'EOF'
+          cat > temp-test/bad.md << 'EOF'
           # Test File
 
           This is a test file with some   extra spaces.
@@ -59,25 +76,16 @@ jobs:
           And too many blank lines.
           EOF
 
-      - name: Setup Node.js for test files
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install test tools in test-files directory
-        run: |
-          cd test-files
-          npm init -y
-          npm install --save-dev eslint prettier markdownlint-cli2
-
-      - name: Test Fix-it Felix (dry-run)
+      - name: Test Fix-it Felix functionality
         uses: ./
         with:
-          config_path: '.felixrc.ci.json'
+          fixers: 'prettier,markdownlint'
+          paths: 'temp-test'
           dry_run: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # Integration test: Real commit mode (only on PRs)
   integration-test:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
