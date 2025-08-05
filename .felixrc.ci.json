@@ -1,0 +1,5 @@
+{
+  "fixers": ["prettier", "markdownlint"],
+  "paths": ["test-files"],
+  "ignore": ["node_modules/**", "dist/**", "build/**", ".git/**"]
+}

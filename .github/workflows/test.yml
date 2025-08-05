@@ -73,9 +73,8 @@ jobs:
       - name: Test Fix-it Felix (dry-run)
         uses: ./
         with:
-          fixers: 'prettier,markdownlint'
+          config_path: '.felixrc.ci.json'
           dry_run: true
-          paths: 'test-files'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
