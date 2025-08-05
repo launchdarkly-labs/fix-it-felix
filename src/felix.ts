@@ -47,7 +47,7 @@ export class FixitFelix {
       }
 
       const fixerPaths = this.config.getFixerPaths(fixerName)
-      const fixer = createFixer(fixerName, this.config.getFixerConfig(fixerName), fixerPaths)
+      const fixer = createFixer(fixerName, this.config.getFixerConfig(fixerName), fixerPaths, this.config)
       if (!fixer) {
         core.warning(`⚠️ Could not create fixer: ${fixerName}`)
         continue

@@ -1,10 +1,15 @@
 import * as fs from 'fs'
 import * as exec from '@actions/exec'
 import { BaseFixer } from './base'
+import { ConfigManager } from '../config'
+import { minimatch } from 'minimatch'
 
 export class PrettierFixer extends BaseFixer {
-  constructor(config: any = {}, paths: string[] = ['.']) {
+  private configManager?: ConfigManager
+
+  constructor(config: any = {}, paths: string[] = ['.'], configManager?: ConfigManager) {
     super('prettier', config, paths)
+    this.configManager = configManager
   }
 
   async isAvailable(): Promise<boolean> {
@@ -22,6 +27,26 @@ export class PrettierFixer extends BaseFixer {
     }
   }
 
+  private filterIgnoredPaths(paths: string[]): string[] {
+    if (!this.configManager) {
+      return paths
+    }
+
+    const ignorePatterns = this.configManager.getIgnorePatterns()
+    return paths.filter(path => {
+      const cleanPath = path.endsWith('/') ? path.slice(0, -1) : path
+      
+      // Check if this path matches any ignore pattern
+      return !ignorePatterns.some(pattern => {
+        // Convert glob pattern to work with minimatch
+        const normalizedPattern = pattern.replace(/\*\*\//, '').replace(/\/\*\*$/, '/**')
+        return minimatch(cleanPath, normalizedPattern) || 
+               minimatch(cleanPath + '/', normalizedPattern) ||
+               cleanPath.startsWith(pattern.replace('/**', ''))
+      })
+    })
+  }
+
   getCommand(): string[] {
     const cmd = ['npx', 'prettier']
 
@@ -33,12 +58,22 @@ export class PrettierFixer extends BaseFixer {
     // Add write flag
     cmd.push('--write')
 
-    // Generate file patterns based on configured paths and extensions
+    // Filter out ignored paths
+    const filteredPaths = this.filterIgnoredPaths(this.paths)
+    
+    // If all paths are ignored, return early command that will do nothing
+    if (filteredPaths.length === 0) {
+      cmd.push('--no-error-on-unmatched-pattern')
+      cmd.push('non-existent-file-to-ensure-no-processing')
+      return cmd
+    }
+
+    // Generate file patterns based on filtered paths and extensions
     const extensions = this.getExtensions()
     const extPattern = extensions.map(ext => ext.slice(1)).join(',')
 
-    // Create patterns for each configured path
-    for (const path of this.paths) {
+    // Create patterns for each filtered path
+    for (const path of filteredPaths) {
       const cleanPath = path.endsWith('/') ? path.slice(0, -1) : path
       if (cleanPath === '.') {
         cmd.push(`**/*.{${extPattern}}`)
