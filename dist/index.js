@@ -30687,9 +30687,9 @@ class PrettierFixer extends base_1.BaseFixer {
             return !ignorePatterns.some(pattern => {
                 // Convert glob pattern to work with minimatch
                 const normalizedPattern = pattern.replace(/\*\*\//, '').replace(/\/\*\*$/, '/**');
-                return (0, minimatch_1.minimatch)(cleanPath, normalizedPattern) ||
+                return ((0, minimatch_1.minimatch)(cleanPath, normalizedPattern) ||
                     (0, minimatch_1.minimatch)(cleanPath + '/', normalizedPattern) ||
-                    cleanPath.startsWith(pattern.replace('/**', ''));
+                    cleanPath.startsWith(pattern.replace('/**', '')));
             });
         });
     }
