@@ -35,14 +35,16 @@ export class PrettierFixer extends BaseFixer {
     const ignorePatterns = this.configManager.getIgnorePatterns()
     return paths.filter(path => {
       const cleanPath = path.endsWith('/') ? path.slice(0, -1) : path
-      
+
       // Check if this path matches any ignore pattern
       return !ignorePatterns.some(pattern => {
         // Convert glob pattern to work with minimatch
         const normalizedPattern = pattern.replace(/\*\*\//, '').replace(/\/\*\*$/, '/**')
-        return minimatch(cleanPath, normalizedPattern) || 
-               minimatch(cleanPath + '/', normalizedPattern) ||
-               cleanPath.startsWith(pattern.replace('/**', ''))
+        return (
+          minimatch(cleanPath, normalizedPattern) ||
+          minimatch(cleanPath + '/', normalizedPattern) ||
+          cleanPath.startsWith(pattern.replace('/**', ''))
+        )
       })
     })
   }
@@ -60,7 +62,7 @@ export class PrettierFixer extends BaseFixer {
 
     // Filter out ignored paths
     const filteredPaths = this.filterIgnoredPaths(this.paths)
-    
+
     // If all paths are ignored, return early command that will do nothing
     if (filteredPaths.length === 0) {
       cmd.push('--no-error-on-unmatched-pattern')
