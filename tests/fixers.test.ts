@@ -2,6 +2,7 @@ import { createFixer, AVAILABLE_FIXERS } from '../src/fixers'
 import { ESLintFixer } from '../src/fixers/eslint'
 import { PrettierFixer } from '../src/fixers/prettier'
 import { MarkdownLintFixer } from '../src/fixers/markdownlint'
+import { ConfigManager } from '../src/config'
 
 describe('Fixer Factory', () => {
   describe('createFixer()', () => {
@@ -233,6 +234,54 @@ describe('MarkdownLintFixer', () => {
       const extensions = fixer.getExtensions()
 
       expect(extensions).toEqual(['.md', '.markdown'])
+    })
+  })
+
+  describe('ignore patterns', () => {
+    it('should filter out ignored paths when ConfigManager is provided', () => {
+      // Mock inputs with test-files ignored
+      const mockInputs = {
+        fixers: 'prettier',
+        paths: 'test-files',
+        configPath: '.felixrc.json',
+        dryRun: true,
+        skipLabel: 'skip-felix',
+        commitMessage: 'Fix formatting',
+        allowedBots: 'dependabot'
+      }
+
+      // Create a mock config manager that ignores test-files
+      const configManager = new ConfigManager(mockInputs)
+      jest.spyOn(configManager, 'getIgnorePatterns').mockReturnValue(['test-files/**'])
+
+      const fixer = new PrettierFixer({}, ['test-files'], configManager)
+      const command = fixer.getCommand()
+
+      // Should include the no-processing pattern since test-files is ignored
+      expect(command).toContain('non-existent-file-to-ensure-no-processing')
+      expect(command).toContain('--no-error-on-unmatched-pattern')
+    })
+
+    it('should process paths normally when not ignored', () => {
+      const mockInputs = {
+        fixers: 'prettier',
+        paths: 'src',
+        configPath: '.felixrc.json',
+        dryRun: true,
+        skipLabel: 'skip-felix',
+        commitMessage: 'Fix formatting',
+        allowedBots: 'dependabot'
+      }
+
+      const configManager = new ConfigManager(mockInputs)
+      jest.spyOn(configManager, 'getIgnorePatterns').mockReturnValue(['test-files/**'])
+
+      const fixer = new PrettierFixer({}, ['src'], configManager)
+      const command = fixer.getCommand()
+
+      // Should process src normally
+      expect(command).toContain('src/**/*.{js,jsx,ts,tsx,json,css,scss,md,yml,yaml}')
+      expect(command).not.toContain('non-existent-file-to-ensure-no-processing')
     })
   })
 })

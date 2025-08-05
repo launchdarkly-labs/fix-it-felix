@@ -47,7 +47,12 @@ export class FixitFelix {
       }
 
       const fixerPaths = this.config.getFixerPaths(fixerName)
-      const fixer = createFixer(fixerName, this.config.getFixerConfig(fixerName), fixerPaths)
+      const fixer = createFixer(
+        fixerName,
+        this.config.getFixerConfig(fixerName),
+        fixerPaths,
+        this.config
+      )
       if (!fixer) {
         core.warning(`⚠️ Could not create fixer: ${fixerName}`)
         continue
@@ -169,7 +174,7 @@ export class FixitFelix {
 
       // Check if there are actually staged changes
       let statusOutput = ''
-      await exec.exec('git', ['status', '--porcelain', '--cached'], {
+      await exec.exec('git', ['diff', '--cached', '--name-only'], {
         listeners: {
           stdout: (data: Buffer) => {
             statusOutput += data.toString()

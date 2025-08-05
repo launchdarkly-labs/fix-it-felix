@@ -32,7 +32,8 @@ jobs:
       - name: Package action
         run: npm run package
 
-  test-action:
+  # Test functionality: Verify Felix detects formatting issues (dry run)
+  test-functionality:
     runs-on: ubuntu-latest
     needs: test
 
@@ -40,16 +41,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create test files with issues
+      - name: Create test files with intentional issues
         run: |
-          mkdir -p test-files
-          cat > test-files/test.js << 'EOF'
+          mkdir temp-test
+          cat > temp-test/bad.js << 'EOF'
           const   x=1;
           let y= 2   ;
           console.log(x,y)
           EOF
 
-          cat > test-files/test.md << 'EOF'
+          cat > temp-test/bad.md << 'EOF'
           # Test File
 
           This is a test file with some   extra spaces.
@@ -59,27 +60,55 @@ jobs:
           And too many blank lines.
           EOF
 
-      - name: Setup Node.js for test files
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install test tools
-        run: |
-          npm init -y
-          npm install --save-dev eslint prettier markdownlint-cli2
-
-      - name: Test Fix-it Felix (dry-run)
+      - name: Test Fix-it Felix functionality (dry run)
         uses: ./
         with:
-          fixers: 'eslint,prettier,markdownlint'
+          fixers: 'prettier,markdownlint'
+          paths: 'temp-test'
           dry_run: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  integration-test:
+  # Check for uncommitted dist changes
+  check-dist:
     runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check if dist is up to date
+        run: |
+          npm run build
+          if ! git diff --quiet dist/; then
+            echo "❌ dist/ folder is not up to date."
+            echo "📁 Files that changed:"
+            git diff --name-only dist/
+            echo ""
+            echo "🔧 To fix: run 'npm run build' and commit the changes."
+            exit 1
+          else
+            echo "✅ dist/ folder is up to date."
+          fi
+
+  # Dogfood: Actually fix formatting issues in this repo (real run)
+  dogfood:
+    runs-on: ubuntu-latest
+    needs: [test, test-functionality, check-dist]
     if: github.event_name == 'pull_request'
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout
@@ -87,11 +116,11 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+          ref: ${{ github.head_ref }}
 
-      - name: Test Fix-it Felix (real run)
+      - name: Fix formatting issues with Felix (real run)
         uses: ./
         with:
-          fixers: 'prettier'
-          commit_message: '🧪 Test commit from Fix-it Felix'
+          commit_message: '🤖 Fix-it Felix: Auto-fix formatting issues'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
