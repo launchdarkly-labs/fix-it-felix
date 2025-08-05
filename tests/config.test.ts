@@ -140,6 +140,20 @@ describe('ConfigManager', () => {
       const manager = new ConfigManager(inputs)
       expect(manager.getPaths()).toEqual(['src', 'docs'])
     })
+
+    it('should prioritize action input paths over config file paths', () => {
+      const inputs = { ...defaultInputs, paths: 'test-files,custom-dir' }
+      const configContent = {
+        paths: ['src', 'docs', 'config-paths']
+      }
+
+      mockFs.existsSync.mockReturnValue(true)
+      mockFs.readFileSync.mockReturnValue(JSON.stringify(configContent))
+
+      const manager = new ConfigManager(inputs)
+      // Action input should override config file
+      expect(manager.getPaths()).toEqual(['test-files', 'custom-dir'])
+    })
   })
 
   describe('getFixerPaths()', () => {

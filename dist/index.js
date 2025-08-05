@@ -29997,15 +29997,15 @@ class ConfigManager {
             .filter(f => f.length > 0);
     }
     getPaths() {
-        // Priority: config file > action input > default
-        if (this.config.paths && this.config.paths.length > 0) {
-            return this.config.paths;
-        }
+        // Priority: action input > config file > default
         if (this.inputs.paths) {
             return this.inputs.paths
                 .split(',')
                 .map(p => p.trim())
                 .filter(p => p.length > 0);
+        }
+        if (this.config.paths && this.config.paths.length > 0) {
+            return this.config.paths;
         }
         return ['.'];
     }
