@@ -30214,7 +30214,7 @@ class FixitFelix {
             await exec.exec('git', ['add', ...changedFiles]);
             // Check if there are actually staged changes
             let statusOutput = '';
-            await exec.exec('git', ['status', '--porcelain', '--cached'], {
+            await exec.exec('git', ['diff', '--cached', '--name-only'], {
                 listeners: {
                     stdout: (data) => {
                         statusOutput += data.toString();

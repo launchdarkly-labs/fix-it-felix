@@ -169,7 +169,7 @@ export class FixitFelix {
 
       // Check if there are actually staged changes
       let statusOutput = ''
-      await exec.exec('git', ['status', '--porcelain', '--cached'], {
+      await exec.exec('git', ['diff', '--cached', '--name-only'], {
         listeners: {
           stdout: (data: Buffer) => {
             statusOutput += data.toString()
