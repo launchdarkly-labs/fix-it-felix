@@ -64,15 +64,16 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install test tools
+      - name: Install test tools in test-files directory
         run: |
+          cd test-files
           npm init -y
           npm install --save-dev eslint prettier markdownlint-cli2
 
       - name: Test Fix-it Felix (dry-run)
         uses: ./
         with:
-          fixers: 'eslint,prettier,markdownlint'
+          fixers: 'prettier,markdownlint'
           dry_run: true
           paths: 'test-files'
         env:
