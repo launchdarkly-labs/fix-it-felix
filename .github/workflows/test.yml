@@ -91,8 +91,11 @@ jobs:
         run: |
           npm run build
           if ! git diff --quiet dist/; then
-            echo "❌ dist/ folder is not up to date. Please run 'npm run build' and commit the changes."
-            git diff dist/
+            echo "❌ dist/ folder is not up to date."
+            echo "📁 Files that changed:"
+            git diff --name-only dist/
+            echo ""
+            echo "🔧 To fix: run 'npm run build' and commit the changes."
             exit 1
           else
             echo "✅ dist/ folder is up to date."
