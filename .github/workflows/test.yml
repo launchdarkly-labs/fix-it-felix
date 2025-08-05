@@ -41,6 +41,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Debug dogfood environment
+        run: |
+          echo "=== Dogfood Debug Info ==="
+          echo "Event: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Working directory contents:"
+          ls -la
+          echo "Felix config:"
+          cat .felixrc.json || echo "No .felixrc.json found"
+          echo "=========================="
+
       - name: Test Fix-it Felix on this repo (dogfood)
         uses: ./
         with:
@@ -75,6 +86,17 @@ jobs:
 
           And too many blank lines.
           EOF
+
+      - name: Debug functionality test environment  
+        run: |
+          echo "=== Functionality Test Debug Info ==="
+          echo "Created test files:"
+          ls -la temp-test/
+          echo "temp-test/bad.js contents:"
+          cat temp-test/bad.js
+          echo "temp-test/bad.md contents:"
+          cat temp-test/bad.md
+          echo "====================================="
 
       - name: Test Fix-it Felix functionality
         uses: ./
