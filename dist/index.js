@@ -30346,7 +30346,21 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`;
                 extensions = fixerConfig.extensions || ['.js', '.jsx', '.ts', '.tsx', '.vue'];
                 break;
             case 'prettier':
-                extensions = fixerConfig.extensions || ['.js', '.jsx', '.ts', '.tsx', '.vue', '.json', '.md', '.yml', '.yaml', '.css', '.scss', '.less', '.html'];
+                extensions = fixerConfig.extensions || [
+                    '.js',
+                    '.jsx',
+                    '.ts',
+                    '.tsx',
+                    '.vue',
+                    '.json',
+                    '.md',
+                    '.yml',
+                    '.yaml',
+                    '.css',
+                    '.scss',
+                    '.less',
+                    '.html'
+                ];
                 break;
             case 'markdownlint':
                 extensions = fixerConfig.extensions || ['.md', '.markdown'];
