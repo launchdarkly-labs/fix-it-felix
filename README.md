@@ -51,7 +51,7 @@ jobs:
         run: npm ci
 
       - name: Run Fix-it Felix
-        uses: launchdarkly-labs/fix-it-felix-action@v1
+        uses: launchdarkly-labs/fix-it-felix@v1
         with:
           fixers: 'eslint,prettier'
         env:
@@ -103,7 +103,7 @@ jobs:
 
 ```yaml
 - name: Run Fix-it Felix
-  uses: launchdarkly-labs/fix-it-felix-action@v1
+  uses: launchdarkly-labs/fix-it-felix@v1
   with:
     fixers: 'eslint,prettier,markdownlint'
     paths: 'src,docs'
@@ -201,7 +201,7 @@ Test Felix without committing changes:
 
 ```yaml
 - name: Run Fix-it Felix (Dry Run)
-  uses: launchdarkly-labs/fix-it-felix-action@v1
+  uses: launchdarkly-labs/fix-it-felix@v1
   with:
     fixers: 'eslint,prettier'
     dry_run: true
