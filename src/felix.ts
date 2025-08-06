@@ -289,14 +289,14 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
       if (!process.env.GITHUB_TOKEN) {
         throw new Error('No GITHUB_TOKEN available')
       }
-      
+
       const octokit = github.getOctokit(process.env.GITHUB_TOKEN)
       const files = await octokit.rest.pulls.listFiles({
         owner: pr.base.repo.owner.login,
         repo: pr.base.repo.name,
         pull_number: pr.number
       })
-      
+
       const changedFiles = files.data
         .map((f: any) => f.filename)
         .filter((file: string) => {
