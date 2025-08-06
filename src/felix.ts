@@ -278,28 +278,28 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
   }
 
   private async getChangedFilesInPR(): Promise<string[]> {
+    const pr = this.context.payload.pull_request
+    if (!pr) {
+      core.warning('No pull request context available')
+      return []
+    }
+
+    // Try GitHub API first
     try {
-      const pr = this.context.payload.pull_request
-      if (!pr) {
-        core.warning('No pull request context available')
-        return []
+      if (!process.env.GITHUB_TOKEN) {
+        throw new Error('No GITHUB_TOKEN available')
       }
 
-      // Use git to get changed files
-      let output = ''
-      await exec.exec('git', ['diff', '--name-only', `origin/${pr.base.ref}...HEAD`], {
-        listeners: {
-          stdout: (data: Buffer) => {
-            output += data.toString()
-          }
-        }
+      const octokit = github.getOctokit(process.env.GITHUB_TOKEN)
+      const files = await octokit.rest.pulls.listFiles({
+        owner: pr.base.repo.owner.login,
+        repo: pr.base.repo.name,
+        pull_number: pr.number
       })
 
-      const changedFiles = output
-        .trim()
-        .split('\n')
-        .filter(file => file.length > 0)
-        .filter(file => {
+      const changedFiles = files.data
+        .map((f: any) => f.filename)
+        .filter((file: string) => {
           // Skip deleted files
           try {
             return fs.existsSync(file)
@@ -308,12 +308,57 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
           }
         })
 
+      core.info(`📁 Found ${changedFiles.length} changed files via GitHub API`)
       return changedFiles
-    } catch (error) {
-      core.warning(`Could not get changed files from PR: ${error}`)
-      // Fallback to all configured paths
-      return this.config.getPaths()
+    } catch (apiError) {
+      core.warning(`Could not get changed files from GitHub API: ${apiError}`)
     }
+
+    // Fallback to git commands with multiple strategies
+    const gitStrategies = [
+      `origin/${pr.base.ref}...HEAD`,
+      `${pr.base.sha}...HEAD`,
+      `HEAD~1`,
+      `HEAD^`
+    ]
+
+    for (const strategy of gitStrategies) {
+      try {
+        let output = ''
+        await exec.exec('git', ['diff', '--name-only', strategy], {
+          listeners: {
+            stdout: (data: Buffer) => {
+              output += data.toString()
+            }
+          }
+        })
+
+        const changedFiles = output
+          .trim()
+          .split('\n')
+          .filter(file => file.length > 0)
+          .filter(file => {
+            // Skip deleted files
+            try {
+              return fs.existsSync(file)
+            } catch {
+              return false
+            }
+          })
+
+        if (changedFiles.length > 0) {
+          core.info(`📁 Found ${changedFiles.length} changed files via git strategy: ${strategy}`)
+          return changedFiles
+        }
+      } catch (error) {
+        core.debug(`Git strategy failed (${strategy}): ${error}`)
+        continue
+      }
+    }
+
+    core.warning('All git strategies failed, falling back to configured paths')
+    // Final fallback to all configured paths
+    return this.config.getPaths()
   }
 
   private filterFilesByFixer(
