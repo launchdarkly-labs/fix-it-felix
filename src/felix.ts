@@ -34,7 +34,7 @@ export class FixitFelix {
 
     // Check for infinite loop protection
     if (await this.isInfiniteLoopRisk()) {
-      core.info( '🔄 Skipping Fix-it Felix to prevent infinite loop' )
+      core.info('🔄 Skipping Fix-it Felix to prevent infinite loop')
       return result
     }
 
