@@ -60,8 +60,13 @@ export class FixitFelix {
       // Filter changed files for this fixer based on extensions and configured paths
       const fixerConfig = this.config.getFixerConfig(fixerName)
       const configuredPaths = this.config.getFixerPaths(fixerName)
-      const relevantFiles = this.filterFilesByFixer(changedFiles, fixerName, fixerConfig, configuredPaths)
-      
+      const relevantFiles = this.filterFilesByFixer(
+        changedFiles,
+        fixerName,
+        fixerConfig,
+        configuredPaths
+      )
+
       if (relevantFiles.length === 0) {
         core.info(`📁 No relevant files for ${fixerName}`)
         continue
@@ -311,7 +316,12 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
     }
   }
 
-  private filterFilesByFixer(files: string[], fixerName: string, fixerConfig: any, configuredPaths: string[]): string[] {
+  private filterFilesByFixer(
+    files: string[],
+    fixerName: string,
+    fixerConfig: any,
+    configuredPaths: string[]
+  ): string[] {
     // Get the extensions this fixer handles
     let extensions: string[] = []
 
