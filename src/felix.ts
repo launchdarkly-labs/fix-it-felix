@@ -57,9 +57,10 @@ export class FixitFelix {
         continue
       }
 
-      // Filter changed files for this fixer based on extensions
+      // Filter changed files for this fixer based on extensions and configured paths
       const fixerConfig = this.config.getFixerConfig(fixerName)
-      const relevantFiles = this.filterFilesByFixer(changedFiles, fixerName, fixerConfig)
+      const configuredPaths = this.config.getFixerPaths(fixerName)
+      const relevantFiles = this.filterFilesByFixer(changedFiles, fixerName, fixerConfig, configuredPaths)
       
       if (relevantFiles.length === 0) {
         core.info(`📁 No relevant files for ${fixerName}`)
@@ -315,7 +316,7 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
     }
   }
 
-  private filterFilesByFixer(files: string[], fixerName: string, fixerConfig: any): string[] {
+  private filterFilesByFixer(files: string[], fixerName: string, fixerConfig: any, configuredPaths: string[]): string[] {
     // Get the extensions this fixer handles
     let extensions: string[] = []
     
@@ -335,7 +336,28 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
 
     return files.filter(file => {
       const ext = path.extname(file).toLowerCase()
-      return extensions.includes(ext)
+      if (!extensions.includes(ext)) {
+        return false
+      }
+
+      // Check if file is within configured paths
+      // If configuredPaths is ['.'], include all files (default behavior)
+      if (configuredPaths.length === 1 && configuredPaths[0] === '.') {
+        return true
+      }
+
+      // Check if file matches any of the configured paths
+      return configuredPaths.some(configPath => {
+        // Handle both directory paths and glob-like patterns
+        if (configPath.endsWith('/') || !path.extname(configPath)) {
+          // It's a directory path - check if file is within it
+          const normalizedPath = configPath.endsWith('/') ? configPath.slice(0, -1) : configPath
+          return file.startsWith(normalizedPath + '/') || file === normalizedPath
+        } else {
+          // It's a specific file pattern - check direct match
+          return file === configPath || file.includes(configPath)
+        }
+      })
     })
   }
 }
