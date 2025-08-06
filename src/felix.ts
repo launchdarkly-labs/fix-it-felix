@@ -69,12 +69,7 @@ export class FixitFelix {
 
       core.info(`📁 Running ${fixerName} on ${relevantFiles.length} changed files`)
 
-      const fixer = createFixer(
-        fixerName,
-        fixerConfig,
-        relevantFiles,
-        this.config
-      )
+      const fixer = createFixer(fixerName, fixerConfig, relevantFiles, this.config)
       if (!fixer) {
         core.warning(`⚠️ Could not create fixer: ${fixerName}`)
         continue
@@ -319,13 +314,27 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
   private filterFilesByFixer(files: string[], fixerName: string, fixerConfig: any, configuredPaths: string[]): string[] {
     // Get the extensions this fixer handles
     let extensions: string[] = []
-    
+
     switch (fixerName) {
       case 'eslint':
         extensions = fixerConfig.extensions || ['.js', '.jsx', '.ts', '.tsx', '.vue']
         break
       case 'prettier':
-        extensions = fixerConfig.extensions || ['.js', '.jsx', '.ts', '.tsx', '.vue', '.json', '.md', '.yml', '.yaml', '.css', '.scss', '.less', '.html']
+        extensions = fixerConfig.extensions || [
+          '.js',
+          '.jsx',
+          '.ts',
+          '.tsx',
+          '.vue',
+          '.json',
+          '.md',
+          '.yml',
+          '.yaml',
+          '.css',
+          '.scss',
+          '.less',
+          '.html'
+        ]
         break
       case 'markdownlint':
         extensions = fixerConfig.extensions || ['.md', '.markdown']
