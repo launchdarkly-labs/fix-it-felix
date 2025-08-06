@@ -47,7 +47,6 @@ describe('FixitFelix', () => {
     jest.clearAllMocks()
   })
 
-
   describe('bot detection and infinite loop protection', () => {
     it('should skip when last commit is from Felix', async () => {
       // Mock git log to return Felix as author
@@ -118,7 +117,12 @@ describe('FixitFelix', () => {
           // Mock prettier version check
           options?.listeners?.stdout?.(Buffer.from('2.8.0'))
           return Promise.resolve(0)
-        } else if (command === 'npx' && args && args.includes('prettier') && args.includes('--write')) {
+        } else if (
+          command === 'npx' &&
+          args &&
+          args.includes('prettier') &&
+          args.includes('--write')
+        ) {
           // Mock prettier command
           return Promise.resolve(0)
         } else if (args && args.includes('--name-only') && !args.includes('origin/')) {
@@ -154,7 +158,12 @@ describe('FixitFelix', () => {
           // Mock prettier version check
           options?.listeners?.stdout?.(Buffer.from('2.8.0'))
           return Promise.resolve(0)
-        } else if (command === 'npx' && args && args.includes('prettier') && args.includes('--write')) {
+        } else if (
+          command === 'npx' &&
+          args &&
+          args.includes('prettier') &&
+          args.includes('--write')
+        ) {
           // Mock prettier command
           return Promise.resolve(0)
         } else if (args && args.includes('--name-only') && !args.includes('origin/')) {
@@ -188,7 +197,12 @@ describe('FixitFelix', () => {
           // Mock prettier version check
           options?.listeners?.stdout?.(Buffer.from('2.8.0'))
           return Promise.resolve(0)
-        } else if (command === 'npx' && args && args.includes('prettier') && args.includes('--write')) {
+        } else if (
+          command === 'npx' &&
+          args &&
+          args.includes('prettier') &&
+          args.includes('--write')
+        ) {
           // Mock prettier command
           return Promise.resolve(0)
         } else if (args && args.includes('--name-only') && !args.includes('origin/')) {
@@ -239,7 +253,12 @@ describe('FixitFelix', () => {
             // Mock prettier version check
             options?.listeners?.stdout?.(Buffer.from('2.8.0'))
             return Promise.resolve(0)
-          } else if (command === 'npx' && args && args.includes('prettier') && args.includes('--write')) {
+          } else if (
+            command === 'npx' &&
+            args &&
+            args.includes('prettier') &&
+            args.includes('--write')
+          ) {
             // Mock prettier command
             return Promise.resolve(0)
           } else if (args && args.includes('--name-only') && !args.includes('origin/')) {
@@ -282,7 +301,12 @@ describe('FixitFelix', () => {
           // Mock prettier version check
           options?.listeners?.stdout?.(Buffer.from('2.8.0'))
           return Promise.resolve(0)
-        } else if (command === 'npx' && args && args.includes('prettier') && args.includes('--write')) {
+        } else if (
+          command === 'npx' &&
+          args &&
+          args.includes('prettier') &&
+          args.includes('--write')
+        ) {
           // Mock prettier command
           return Promise.resolve(0)
         } else if (args && args.includes('--name-only') && !args.includes('origin/')) {
