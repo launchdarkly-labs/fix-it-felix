@@ -14,21 +14,21 @@ export class FixitFelix {
   private config: ConfigManager
 
   constructor(inputs: FelixInputs, context: Context) {
-    this.inputs = inputs
-    this.context = context
-    this.config = new ConfigManager(inputs)
+    this.inputs = inputs;
+    this.context = context;
+    this.config = new ConfigManager(inputs);
   }
 
   async run(): Promise<FelixResult> {
     const result: FelixResult = {
       fixesApplied: false,
       changedFiles: [],
-      fixerResults: []
+      fixerResults: [ ]
     }
 
     // Check if we should skip processing
     if (await this.shouldSkip()) {
-      core.info('🚫 Skipping Fix-it Felix due to skip conditions')
+      core.info( '🚫 Skipping Fix-it Felix due to skip conditions' )
       return result
     }
 
