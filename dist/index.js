@@ -30079,6 +30079,8 @@ exports.FixitFelix = void 0;
 const core = __importStar(__nccwpck_require__(7484));
 const github = __importStar(__nccwpck_require__(3228));
 const exec = __importStar(__nccwpck_require__(5236));
+const fs = __importStar(__nccwpck_require__(9896));
+const path = __importStar(__nccwpck_require__(6928));
 const config_1 = __nccwpck_require__(2973);
 const fixers_1 = __nccwpck_require__(8413);
 class FixitFelix {
@@ -30103,6 +30105,13 @@ class FixitFelix {
             core.info('🔄 Skipping Fix-it Felix to prevent infinite loop');
             return result;
         }
+        // Get changed files from PR
+        const changedFiles = await this.getChangedFilesInPR();
+        if (changedFiles.length === 0) {
+            core.info('📁 No files changed in PR');
+            return result;
+        }
+        core.info(`📁 Found ${changedFiles.length} changed files in PR`);
         // Run fixers
         const fixers = this.config.getFixers();
         core.info(`🛠️ Running fixers: ${fixers.join(', ')}`);
@@ -30111,8 +30120,16 @@ class FixitFelix {
                 core.warning(`⚠️ Unknown fixer: ${fixerName}`);
                 continue;
             }
-            const fixerPaths = this.config.getFixerPaths(fixerName);
-            const fixer = (0, fixers_1.createFixer)(fixerName, this.config.getFixerConfig(fixerName), fixerPaths, this.config);
+            // Filter changed files for this fixer based on extensions and configured paths
+            const fixerConfig = this.config.getFixerConfig(fixerName);
+            const configuredPaths = this.config.getFixerPaths(fixerName);
+            const relevantFiles = this.filterFilesByFixer(changedFiles, fixerName, fixerConfig, configuredPaths);
+            if (relevantFiles.length === 0) {
+                core.info(`📁 No relevant files for ${fixerName}`);
+                continue;
+            }
+            core.info(`📁 Running ${fixerName} on ${relevantFiles.length} changed files`);
+            const fixer = (0, fixers_1.createFixer)(fixerName, fixerConfig, relevantFiles, this.config);
             if (!fixer) {
                 core.warning(`⚠️ Could not create fixer: ${fixerName}`);
                 continue;
@@ -30284,6 +30301,98 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`;
             core.warning(`Failed to comment on PR: ${error}`);
         }
     }
+    async getChangedFilesInPR() {
+        try {
+            const pr = this.context.payload.pull_request;
+            if (!pr) {
+                core.warning('No pull request context available');
+                return [];
+            }
+            // Use git to get changed files
+            let output = '';
+            await exec.exec('git', ['diff', '--name-only', `origin/${pr.base.ref}...HEAD`], {
+                listeners: {
+                    stdout: (data) => {
+                        output += data.toString();
+                    }
+                }
+            });
+            const changedFiles = output
+                .trim()
+                .split('\n')
+                .filter(file => file.length > 0)
+                .filter(file => {
+                // Skip deleted files
+                try {
+                    return fs.existsSync(file);
+                }
+                catch {
+                    return false;
+                }
+            });
+            return changedFiles;
+        }
+        catch (error) {
+            core.warning(`Could not get changed files from PR: ${error}`);
+            // Fallback to all configured paths
+            return this.config.getPaths();
+        }
+    }
+    filterFilesByFixer(files, fixerName, fixerConfig, configuredPaths) {
+        // Get the extensions this fixer handles
+        let extensions = [];
+        switch (fixerName) {
+            case 'eslint':
+                extensions = fixerConfig.extensions || ['.js', '.jsx', '.ts', '.tsx', '.vue'];
+                break;
+            case 'prettier':
+                extensions = fixerConfig.extensions || [
+                    '.js',
+                    '.jsx',
+                    '.ts',
+                    '.tsx',
+                    '.vue',
+                    '.json',
+                    '.md',
+                    '.yml',
+                    '.yaml',
+                    '.css',
+                    '.scss',
+                    '.less',
+                    '.html'
+                ];
+                break;
+            case 'markdownlint':
+                extensions = fixerConfig.extensions || ['.md', '.markdown'];
+                break;
+            default:
+                return files;
+        }
+        return files.filter(file => {
+            const ext = path.extname(file).toLowerCase();
+            if (!extensions.includes(ext)) {
+                return false;
+            }
+            // Check if file is within configured paths
+            // If configuredPaths is ['.'], include all files (default behavior)
+            if (configuredPaths.length === 1 && configuredPaths[0] === '.') {
+                return true;
+            }
+            // Check if file matches any of the configured paths
+            return configuredPaths.some(configPath => {
+                // Handle both directory paths and glob-like patterns
+                if (configPath.endsWith('/') || !path.extname(configPath)) {
+                    // It's a directory path - check if file is within it
+                    const normalizedPath = configPath.endsWith('/') ? configPath.slice(0, -1) : configPath;
+                    return file.startsWith(normalizedPath + '/') || file === normalizedPath;
+                }
+                else {
+                    // It's a specific file pattern - check direct match
+                    return file === configPath || file.includes(configPath);
+                }
+            });
+        });
+    }
 }
 exports.FixitFelix = FixitFelix;
 
@@ -30369,6 +30478,7 @@ class BaseFixer {
             result.success = exitCode === 0;
             if (!result.success) {
                 result.error = `${this.name} exited with code ${exitCode}`;
+                core.setFailed(`${this.name} failed with exit code ${exitCode}`);
             }
             result.changedFiles = await this.getChangedFiles();
         }

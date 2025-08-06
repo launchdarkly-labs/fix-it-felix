@@ -1,6 +1,8 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import * as exec from '@actions/exec'
+import * as fs from 'fs'
+import * as path from 'path'
 import { Context } from '@actions/github/lib/context'
 import { ConfigManager } from './config'
 import { createFixer, AVAILABLE_FIXERS } from './fixers'
@@ -36,6 +38,15 @@ export class FixitFelix {
       return result
     }
 
+    // Get changed files from PR
+    const changedFiles = await this.getChangedFilesInPR()
+    if (changedFiles.length === 0) {
+      core.info('📁 No files changed in PR')
+      return result
+    }
+
+    core.info(`📁 Found ${changedFiles.length} changed files in PR`)
+
     // Run fixers
     const fixers = this.config.getFixers()
     core.info(`🛠️ Running fixers: ${fixers.join(', ')}`)
@@ -46,13 +57,24 @@ export class FixitFelix {
         continue
       }
 
-      const fixerPaths = this.config.getFixerPaths(fixerName)
-      const fixer = createFixer(
+      // Filter changed files for this fixer based on extensions and configured paths
+      const fixerConfig = this.config.getFixerConfig(fixerName)
+      const configuredPaths = this.config.getFixerPaths(fixerName)
+      const relevantFiles = this.filterFilesByFixer(
+        changedFiles,
         fixerName,
-        this.config.getFixerConfig(fixerName),
-        fixerPaths,
-        this.config
+        fixerConfig,
+        configuredPaths
       )
+
+      if (relevantFiles.length === 0) {
+        core.info(`📁 No relevant files for ${fixerName}`)
+        continue
+      }
+
+      core.info(`📁 Running ${fixerName} on ${relevantFiles.length} changed files`)
+
+      const fixer = createFixer(fixerName, fixerConfig, relevantFiles, this.config)
       if (!fixer) {
         core.warning(`⚠️ Could not create fixer: ${fixerName}`)
         continue
@@ -253,5 +275,108 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
     } catch (error) {
       core.warning(`Failed to comment on PR: ${error}`)
     }
+  }
+
+  private async getChangedFilesInPR(): Promise<string[]> {
+    try {
+      const pr = this.context.payload.pull_request
+      if (!pr) {
+        core.warning('No pull request context available')
+        return []
+      }
+
+      // Use git to get changed files
+      let output = ''
+      await exec.exec('git', ['diff', '--name-only', `origin/${pr.base.ref}...HEAD`], {
+        listeners: {
+          stdout: (data: Buffer) => {
+            output += data.toString()
+          }
+        }
+      })
+
+      const changedFiles = output
+        .trim()
+        .split('\n')
+        .filter(file => file.length > 0)
+        .filter(file => {
+          // Skip deleted files
+          try {
+            return fs.existsSync(file)
+          } catch {
+            return false
+          }
+        })
+
+      return changedFiles
+    } catch (error) {
+      core.warning(`Could not get changed files from PR: ${error}`)
+      // Fallback to all configured paths
+      return this.config.getPaths()
+    }
+  }
+
+  private filterFilesByFixer(
+    files: string[],
+    fixerName: string,
+    fixerConfig: any,
+    configuredPaths: string[]
+  ): string[] {
+    // Get the extensions this fixer handles
+    let extensions: string[] = []
+
+    switch (fixerName) {
+      case 'eslint':
+        extensions = fixerConfig.extensions || ['.js', '.jsx', '.ts', '.tsx', '.vue']
+        break
+      case 'prettier':
+        extensions = fixerConfig.extensions || [
+          '.js',
+          '.jsx',
+          '.ts',
+          '.tsx',
+          '.vue',
+          '.json',
+          '.md',
+          '.yml',
+          '.yaml',
+          '.css',
+          '.scss',
+          '.less',
+          '.html'
+        ]
+        break
+      case 'markdownlint':
+        extensions = fixerConfig.extensions || ['.md', '.markdown']
+        break
+      default:
+        return files
+    }
+
+    return files.filter(file => {
+      const ext = path.extname(file).toLowerCase()
+      if (!extensions.includes(ext)) {
+        return false
+      }
+
+      // Check if file is within configured paths
+      // If configuredPaths is ['.'], include all files (default behavior)
+      if (configuredPaths.length === 1 && configuredPaths[0] === '.') {
+        return true
+      }
+
+      // Check if file matches any of the configured paths
+      return configuredPaths.some(configPath => {
+        // Handle both directory paths and glob-like patterns
+        if (configPath.endsWith('/') || !path.extname(configPath)) {
+          // It's a directory path - check if file is within it
+          const normalizedPath = configPath.endsWith('/') ? configPath.slice(0, -1) : configPath
+          return file.startsWith(normalizedPath + '/') || file === normalizedPath
+        } else {
+          // It's a specific file pattern - check direct match
+          return file === configPath || file.includes(configPath)
+        }
+      })
+    })
   }
 }
