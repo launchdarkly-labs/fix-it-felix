@@ -8,7 +8,14 @@ const mockExec = exec as jest.Mocked<typeof exec>
 
 // Mock fs to prevent config file reading during tests
 jest.mock('fs', () => ({
-  existsSync: jest.fn(() => false),
+  existsSync: jest.fn((path: string) => {
+    // Return true for our test files so they're not filtered out as deleted
+    if (path === 'src/test.js' || path === 'README.md') {
+      return true
+    }
+    // Return false for everything else (like prettier binary check)
+    return false
+  }),
   readFileSync: jest.fn(() => '{}')
 }))
 
@@ -27,12 +34,19 @@ describe('FixitFelix', () => {
     repo: { owner: 'test', repo: 'test-repo' },
     issue: { number: 1 },
     eventName: 'pull_request',
-    payload: {}
+    payload: {
+      pull_request: {
+        number: 1,
+        base: { ref: 'main' },
+        head: { ref: 'feature' }
+      }
+    }
   } as any
 
   beforeEach(() => {
     jest.clearAllMocks()
   })
+
 
   describe('bot detection and infinite loop protection', () => {
     it('should skip when last commit is from Felix', async () => {
@@ -91,12 +105,25 @@ describe('FixitFelix', () => {
         allowedBots: 'dependabot,renovate'
       }
 
-      // Mock git log to return dependabot as author
+      // Mock git commands
       mockExec.exec.mockImplementation((command, args, options) => {
         if (args && args.includes('--pretty=format:%an')) {
           options?.listeners?.stdout?.(Buffer.from('dependabot[bot]'))
         } else if (args && args.includes('--pretty=format:%s')) {
           options?.listeners?.stdout?.(Buffer.from('Bump package version'))
+        } else if (args && args.includes('--name-only') && args.includes('origin/')) {
+          // Mock changed files in PR
+          options?.listeners?.stdout?.(Buffer.from('src/test.js\nREADME.md'))
+        } else if (command === 'npx' && args && args.includes('--version')) {
+          // Mock prettier version check
+          options?.listeners?.stdout?.(Buffer.from('2.8.0'))
+          return Promise.resolve(0)
+        } else if (command === 'npx' && args && args.includes('prettier') && args.includes('--write')) {
+          // Mock prettier command
+          return Promise.resolve(0)
+        } else if (args && args.includes('--name-only') && !args.includes('origin/')) {
+          // Mock git diff for changed files after running fixer
+          options?.listeners?.stdout?.(Buffer.from('src/test.js'))
         }
         // Mock prettier command to succeed
         return Promise.resolve(0)
@@ -114,12 +141,25 @@ describe('FixitFelix', () => {
     })
 
     it('should proceed when last commit is from regular user', async () => {
-      // Mock git log to return regular user
+      // Mock git commands
       mockExec.exec.mockImplementation((command, args, options) => {
         if (args && args.includes('--pretty=format:%an')) {
           options?.listeners?.stdout?.(Buffer.from('Regular User'))
         } else if (args && args.includes('--pretty=format:%s')) {
           options?.listeners?.stdout?.(Buffer.from('Regular commit message'))
+        } else if (args && args.includes('--name-only') && args.includes('origin/')) {
+          // Mock changed files in PR
+          options?.listeners?.stdout?.(Buffer.from('src/test.js\nREADME.md'))
+        } else if (command === 'npx' && args && args.includes('--version')) {
+          // Mock prettier version check
+          options?.listeners?.stdout?.(Buffer.from('2.8.0'))
+          return Promise.resolve(0)
+        } else if (command === 'npx' && args && args.includes('prettier') && args.includes('--write')) {
+          // Mock prettier command
+          return Promise.resolve(0)
+        } else if (args && args.includes('--name-only') && !args.includes('origin/')) {
+          // Mock git diff for changed files after running fixer
+          options?.listeners?.stdout?.(Buffer.from('src/test.js'))
         }
         // Mock prettier command to succeed
         return Promise.resolve(0)
@@ -138,9 +178,22 @@ describe('FixitFelix', () => {
 
     it('should handle git command errors gracefully', async () => {
       // Mock git log to fail
-      mockExec.exec.mockImplementation((command, args) => {
+      mockExec.exec.mockImplementation((command, args, options) => {
         if (args && args.includes('--pretty=format:%an')) {
           return Promise.reject(new Error('Git command failed'))
+        } else if (args && args.includes('--name-only') && args.includes('origin/')) {
+          // Mock changed files in PR
+          options?.listeners?.stdout?.(Buffer.from('src/test.js\nREADME.md'))
+        } else if (command === 'npx' && args && args.includes('--version')) {
+          // Mock prettier version check
+          options?.listeners?.stdout?.(Buffer.from('2.8.0'))
+          return Promise.resolve(0)
+        } else if (command === 'npx' && args && args.includes('prettier') && args.includes('--write')) {
+          // Mock prettier command
+          return Promise.resolve(0)
+        } else if (args && args.includes('--name-only') && !args.includes('origin/')) {
+          // Mock git diff for changed files after running fixer
+          options?.listeners?.stdout?.(Buffer.from('src/test.js'))
         }
         return Promise.resolve(0)
       })
@@ -179,6 +232,19 @@ describe('FixitFelix', () => {
             options?.listeners?.stdout?.(Buffer.from(author))
           } else if (args && args.includes('--pretty=format:%s')) {
             options?.listeners?.stdout?.(Buffer.from('Regular commit'))
+          } else if (args && args.includes('--name-only') && args.includes('origin/')) {
+            // Mock changed files in PR
+            options?.listeners?.stdout?.(Buffer.from('src/test.js\nREADME.md'))
+          } else if (command === 'npx' && args && args.includes('--version')) {
+            // Mock prettier version check
+            options?.listeners?.stdout?.(Buffer.from('2.8.0'))
+            return Promise.resolve(0)
+          } else if (command === 'npx' && args && args.includes('prettier') && args.includes('--write')) {
+            // Mock prettier command
+            return Promise.resolve(0)
+          } else if (args && args.includes('--name-only') && !args.includes('origin/')) {
+            // Mock git diff for changed files after running fixer
+            options?.listeners?.stdout?.(Buffer.from('src/test.js'))
           }
           return Promise.resolve(0)
         })
@@ -209,6 +275,19 @@ describe('FixitFelix', () => {
       mockExec.exec.mockImplementation((command, args, options) => {
         if (args && args.includes('--pretty=format:%an')) {
           options?.listeners?.stdout?.(Buffer.from('dependabot[bot]'))
+        } else if (args && args.includes('--name-only') && args.includes('origin/')) {
+          // Mock changed files in PR
+          options?.listeners?.stdout?.(Buffer.from('src/test.js\nREADME.md'))
+        } else if (command === 'npx' && args && args.includes('--version')) {
+          // Mock prettier version check
+          options?.listeners?.stdout?.(Buffer.from('2.8.0'))
+          return Promise.resolve(0)
+        } else if (command === 'npx' && args && args.includes('prettier') && args.includes('--write')) {
+          // Mock prettier command
+          return Promise.resolve(0)
+        } else if (args && args.includes('--name-only') && !args.includes('origin/')) {
+          // Mock git diff for changed files after running fixer
+          options?.listeners?.stdout?.(Buffer.from('src/test.js'))
         }
         return Promise.resolve(0)
       })

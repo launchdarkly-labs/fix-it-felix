@@ -54,6 +54,7 @@ export abstract class BaseFixer {
 
       if (!result.success) {
         result.error = `${this.name} exited with code ${exitCode}`
+        core.setFailed(`${this.name} failed with exit code ${exitCode}`)
       }
 
       result.changedFiles = await this.getChangedFiles()

@@ -1,6 +1,8 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import * as exec from '@actions/exec'
+import * as fs from 'fs'
+import * as path from 'path'
 import { Context } from '@actions/github/lib/context'
 import { ConfigManager } from './config'
 import { createFixer, AVAILABLE_FIXERS } from './fixers'
@@ -36,6 +38,15 @@ export class FixitFelix {
       return result
     }
 
+    // Get changed files from PR
+    const changedFiles = await this.getChangedFilesInPR()
+    if (changedFiles.length === 0) {
+      core.info('📁 No files changed in PR')
+      return result
+    }
+
+    core.info(`📁 Found ${changedFiles.length} changed files in PR`)
+
     // Run fixers
     const fixers = this.config.getFixers()
     core.info(`🛠️ Running fixers: ${fixers.join(', ')}`)
@@ -46,11 +57,21 @@ export class FixitFelix {
         continue
       }
 
-      const fixerPaths = this.config.getFixerPaths(fixerName)
+      // Filter changed files for this fixer based on extensions
+      const fixerConfig = this.config.getFixerConfig(fixerName)
+      const relevantFiles = this.filterFilesByFixer(changedFiles, fixerName, fixerConfig)
+      
+      if (relevantFiles.length === 0) {
+        core.info(`📁 No relevant files for ${fixerName}`)
+        continue
+      }
+
+      core.info(`📁 Running ${fixerName} on ${relevantFiles.length} changed files`)
+
       const fixer = createFixer(
         fixerName,
-        this.config.getFixerConfig(fixerName),
-        fixerPaths,
+        fixerConfig,
+        relevantFiles,
         this.config
       )
       if (!fixer) {
@@ -253,5 +274,68 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
     } catch (error) {
       core.warning(`Failed to comment on PR: ${error}`)
     }
+  }
+
+  private async getChangedFilesInPR(): Promise<string[]> {
+    try {
+      const pr = this.context.payload.pull_request
+      if (!pr) {
+        core.warning('No pull request context available')
+        return []
+      }
+
+      // Use git to get changed files
+      let output = ''
+      await exec.exec('git', ['diff', '--name-only', `origin/${pr.base.ref}...HEAD`], {
+        listeners: {
+          stdout: (data: Buffer) => {
+            output += data.toString()
+          }
+        }
+      })
+
+      const changedFiles = output
+        .trim()
+        .split('\n')
+        .filter(file => file.length > 0)
+        .filter(file => {
+          // Skip deleted files
+          try {
+            return fs.existsSync(file)
+          } catch {
+            return false
+          }
+        })
+
+      return changedFiles
+    } catch (error) {
+      core.warning(`Could not get changed files from PR: ${error}`)
+      // Fallback to all configured paths
+      return this.config.getPaths()
+    }
+  }
+
+  private filterFilesByFixer(files: string[], fixerName: string, fixerConfig: any): string[] {
+    // Get the extensions this fixer handles
+    let extensions: string[] = []
+    
+    switch (fixerName) {
+      case 'eslint':
+        extensions = fixerConfig.extensions || ['.js', '.jsx', '.ts', '.tsx', '.vue']
+        break
+      case 'prettier':
+        extensions = fixerConfig.extensions || ['.js', '.jsx', '.ts', '.tsx', '.vue', '.json', '.md', '.yml', '.yaml', '.css', '.scss', '.less', '.html']
+        break
+      case 'markdownlint':
+        extensions = fixerConfig.extensions || ['.md', '.markdown']
+        break
+      default:
+        return files
+    }
+
+    return files.filter(file => {
+      const ext = path.extname(file).toLowerCase()
+      return extensions.includes(ext)
+    })
   }
 }
