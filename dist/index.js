@@ -30255,9 +30255,11 @@ class FixitFelix {
             const pr = this.context.payload.pull_request;
             const branchName = pr?.head?.ref;
             if (branchName) {
+                core.info(`🚀 Pushing changes to branch: ${branchName}`);
                 await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`]);
             }
             else {
+                core.warning('Could not determine branch name, using fallback push');
                 // Fallback to regular push if we can't determine branch name
                 await exec.exec('git', ['push']);
             }
@@ -30288,7 +30290,8 @@ class FixitFelix {
             });
             return output.trim() === 'HEAD';
         }
-        catch {
+        catch (error) {
+            core.warning(`Failed to determine HEAD state: ${error}`);
             return true; // Assume detached if command fails
         }
     }
@@ -30301,13 +30304,25 @@ class FixitFelix {
         if (await this.isDetachedHead()) {
             core.info(`🔧 Detected detached HEAD, checking out branch: ${branchName}`);
             try {
-                // Try to checkout the existing branch
+                // First try to checkout existing branch
                 await exec.exec('git', ['checkout', branchName]);
+                core.info(`✅ Successfully checked out existing branch: ${branchName}`);
             }
-            catch {
-                // If that fails, create a new branch from current HEAD
-                await exec.exec('git', ['checkout', '-b', branchName]);
+            catch (checkoutError) {
+                core.warning(`Failed to checkout existing branch ${branchName}: ${checkoutError}`);
+                try {
+                    // Use -B to force-create or reset the branch
+                    await exec.exec('git', ['checkout', '-B', branchName]);
+                    core.info(`✅ Successfully created/reset branch: ${branchName}`);
+                }
+                catch (createError) {
+                    core.error(`Failed to create branch ${branchName}: ${createError}`);
+                    throw new Error(`Could not ensure correct branch: ${createError}`);
+                }
             }
+        }
+        else {
+            core.debug(`Already on correct branch, not in detached HEAD state`);
         }
     }
     async commentOnPR(result) {
