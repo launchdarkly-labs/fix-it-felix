@@ -30256,7 +30256,23 @@ class FixitFelix {
             const branchName = pr?.head?.ref;
             if (branchName) {
                 core.info(`🚀 Pushing changes to branch: ${branchName}`);
-                await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`]);
+                try {
+                    await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`]);
+                }
+                catch (pushError) {
+                    core.warning(`Push failed, attempting to sync with remote and retry: ${pushError}`);
+                    try {
+                        // Use more reliable rebase approach
+                        await exec.exec('git', ['fetch', 'origin']);
+                        await exec.exec('git', ['rebase', `origin/${branchName}`]);
+                        await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`]);
+                        core.info(`✅ Successfully pushed after rebase`);
+                    }
+                    catch (retryError) {
+                        core.error(`Failed to push even after rebase: ${retryError}`);
+                        throw new Error(`Could not push changes: ${retryError}`);
+                    }
+                }
             }
             else {
                 core.warning('Could not determine branch name, using fallback push');
@@ -30303,21 +30319,31 @@ class FixitFelix {
         }
         if (await this.isDetachedHead()) {
             core.info(`🔧 Detected detached HEAD, checking out branch: ${branchName}`);
+            // First, try to fetch the remote branch to check if it exists
             try {
-                // First try to checkout existing branch
+                await exec.exec('git', ['fetch', 'origin', branchName]);
+                core.info(`📥 Fetched remote branch: ${branchName}`);
+                // If fetch succeeds, checkout the branch (which will track remote automatically)
                 await exec.exec('git', ['checkout', branchName]);
-                core.info(`✅ Successfully checked out existing branch: ${branchName}`);
+                core.info(`✅ Successfully checked out remote branch: ${branchName}`);
             }
-            catch (checkoutError) {
-                core.warning(`Failed to checkout existing branch ${branchName}: ${checkoutError}`);
+            catch (fetchError) {
+                core.info(`Remote branch ${branchName} doesn't exist, creating locally`);
                 try {
-                    // Use -B to force-create or reset the branch
-                    await exec.exec('git', ['checkout', '-B', branchName]);
-                    core.info(`✅ Successfully created/reset branch: ${branchName}`);
+                    // Remote branch doesn't exist, try to checkout local branch
+                    await exec.exec('git', ['checkout', branchName]);
+                    core.info(`✅ Successfully checked out existing local branch: ${branchName}`);
                 }
-                catch (createError) {
-                    core.error(`Failed to create branch ${branchName}: ${createError}`);
-                    throw new Error(`Could not ensure correct branch: ${createError}`);
+                catch (checkoutError) {
+                    try {
+                        // No local branch either, create new branch from current HEAD
+                        await exec.exec('git', ['checkout', '-b', branchName]);
+                        core.info(`✅ Successfully created new branch: ${branchName}`);
+                    }
+                    catch (createError) {
+                        core.error(`Failed to create branch ${branchName}: ${createError}`);
+                        throw new Error(`Could not ensure correct branch: ${createError}`);
+                    }
                 }
             }
         }
