@@ -9,7 +9,9 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "lint": "eslint src/**/*.ts",
-    "format": "prettier --write src/**/*.ts"
+    "lint:fix": "eslint --fix src/**/*.ts tests/**/*.ts",
+    "format": "prettier --write src/**/*.ts",
+    "format:fix": "prettier --write src/**/*.ts tests/**/*.ts examples/**/*.json *.md"
   },
   "repository": {
     "type": "git",

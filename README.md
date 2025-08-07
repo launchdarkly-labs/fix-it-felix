@@ -7,6 +7,7 @@
 ## ✨ Features
 
 - 🔧 **Multiple Fixers**: Support for ESLint, Prettier, and Markdownlint
+- 🎨 **Custom Commands**: Use your own npm scripts or custom commands
 - ⚙️ **Configurable**: Per-repository configuration via `.felixrc.json`
 - 🤖 **Auto-commit**: Automatically commits fixes to PR branches
 - 🛡️ **Safety First**: Built-in safeguards against infinite loops
@@ -47,6 +48,8 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      # ⚠️ REQUIRED: Install dependencies before running Felix
+      # This ensures your project's exact tool versions and configs are used
       - name: Install dependencies
         run: npm ci
 
@@ -81,98 +84,82 @@ jobs:
 
 ### ESLint
 
-- **Command**: `npx eslint --fix .`
+- **Default Command**: `npx eslint --fix .`
 - **Extensions**: `.js`, `.jsx`, `.ts`, `.tsx`, `.vue`
 - **Config**: Respects existing ESLint configuration
+- **Custom Commands**: Override with your own npm scripts or commands
 
 ### Prettier
 
-- **Command**: `npx prettier --write`
+- **Default Command**: `npx prettier --write`
 - **Extensions**: `.js`, `.jsx`, `.ts`, `.tsx`, `.json`, `.css`, `.scss`, `.md`, `.yml`, `.yaml`
 - **Config**: Respects existing Prettier configuration
+- **Custom Commands**: Override with your own npm scripts or commands
 
 ### Markdownlint
 
-- **Command**: `npx markdownlint-cli2 --fix`
+- **Default Command**: `npx markdownlint-cli2 --fix`
 - **Extensions**: `.md`, `.markdown`
 - **Config**: Respects existing Markdownlint configuration
+- **Custom Commands**: Override with your own npm scripts or commands
 
 ## ⚙️ Configuration
 
-### Action Inputs Configuration
+### Basic Setup
+
+Control Felix through action inputs:
 
 ```yaml
 - name: Run Fix-it Felix
   uses: launchdarkly-labs/fix-it-felix@v1
   with:
-    fixers: 'eslint,prettier,markdownlint'
-    paths: 'src,docs'
-    commit_message: '🤖 Custom commit message'
-    config_path: '.custom-felix.json'
-    dry_run: false
-    skip_label: 'no-autofix'
+    fixers: 'eslint,prettier' # Which tools to run
+    paths: 'src,docs' # Which directories to process
+    dry_run: false # Set to true to preview changes
 ```
 
-### Path Configuration
+### Repository Configuration
 
-You can control which directories Felix processes:
-
-**Global Paths (affects all fixers):**
-
-```yaml
-with:
-  paths: 'src,docs,scripts' # Only process these directories
-```
-
-**Per-Fixer Paths (in `.felixrc.json`):**
+For advanced settings, create a `.felixrc.json` file:
 
 ```json
 {
-  "paths": ["src", "docs"], // Global default
-  "prettier": {
-    "paths": ["src", "docs", "examples"] // Prettier-specific paths
-  },
-  "eslint": {
-    "paths": ["src", "scripts"] // ESLint-specific paths
-  }
-}
-```
-
-**Path Examples:**
-
-- `"."` - Current directory (recursive)
-- `"src"` - Only the src directory (recursive)
-- `"src,docs"` - Both src and docs directories
-- `["docs", "README.md"]` - Specific directory and file
-
-### Repository Configuration (`.felixrc.json`)
-
-Create a `.felixrc.json` file in your repository root for advanced configuration:
-
-```json
-{
-  "fixers": ["eslint", "prettier", "markdownlint"],
-  "paths": ["src/**/*", "docs/**/*"],
-  "ignore": ["node_modules/**", "dist/**", "build/**", "coverage/**", "*.min.js"],
+  "fixers": ["eslint", "prettier"],
+  "paths": ["src", "docs"],
+  "ignore": ["node_modules/**", "dist/**"],
   "eslint": {
     "configFile": ".eslintrc.js",
     "extensions": [".js", ".jsx", ".ts", ".tsx"]
   },
   "prettier": {
-    "configFile": ".prettierrc",
-    "extensions": [".js", ".jsx", ".ts", ".tsx", ".json", ".css", ".scss", ".md"]
-  },
-  "markdownlint": {
-    "configFile": ".markdownlint.json"
+    "extensions": [".js", ".jsx", ".ts", ".tsx", ".json", ".md"]
   }
 }
 ```
 
-### Configuration Priority
+### Custom Commands
 
-1. `.felixrc.json` (if present)
-2. Action inputs
-3. Default values
+Use your own npm scripts instead of built-in commands:
+
+```json
+{
+  "eslint": {
+    "command": ["npm", "run", "lint:fix"],
+    "appendPaths": true // Append file paths for performance
+  },
+  "prettier": {
+    "command": ["npm", "run", "format"],
+    "appendPaths": false // Run script as-is
+  }
+}
+```
+
+📚 **[Full Configuration Guide →](docs/CONFIGURATION.md)**
+
+## 📚 Documentation
+
+- **[Configuration Guide](docs/CONFIGURATION.md)** - Complete configuration reference
+- **[Examples](examples/)** - Workflow examples and sample configs
 
 ## 🛡️ Safety Features
 
@@ -217,11 +204,11 @@ In dry-run mode, Felix will:
 
 ## 📝 Examples
 
-See the [`examples/`](examples/) directory for more workflow examples:
+See the [`examples/`](examples/) directory for workflow examples:
 
-- [`basic-usage.yml`](examples/basic-usage.yml) - Simple setup
-- [`advanced-usage.yml`](examples/advanced-usage.yml) - Advanced configuration with dry-run for drafts
-- [`.felixrc.json`](examples/.felixrc.json) - Example configuration file
+- [Basic usage](examples/basic-usage.yml) - Simple setup
+- [Advanced usage](examples/advanced-usage.yml) - Configuration with dry-run
+- [Configuration file](examples/.felixrc.json) - Example `.felixrc.json`
 
 ## 🔧 Development
 
@@ -265,7 +252,7 @@ npm run package
 ## 🎯 Roadmap
 
 - [ ] Support for more fixers (stylelint, gofmt, black, etc.)
-- [ ] Custom fixer support
+- [x] ~~Custom fixer support~~ ✅ **Completed** - Use custom commands
 - [ ] Monorepo support
 - [ ] Slack/Discord notifications
 - [ ] Performance optimizations

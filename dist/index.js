@@ -30482,6 +30482,23 @@ class BaseFixer {
         this.config = config;
         this.paths = paths;
     }
+    hasCustomCommand() {
+        return (this.config.command && Array.isArray(this.config.command) && this.config.command.length > 0);
+    }
+    getCustomCommand() {
+        if (!this.hasCustomCommand()) {
+            return [];
+        }
+        // Check if paths should be appended (default: true)
+        const shouldAppendPaths = this.config.appendPaths !== false;
+        // If appendPaths is enabled and paths are configured and not just default ['.'], append them to custom command
+        if (shouldAppendPaths &&
+            this.paths.length > 0 &&
+            !(this.paths.length === 1 && this.paths[0] === '.')) {
+            return [...this.config.command, ...this.paths];
+        }
+        return [...this.config.command];
+    }
     async run() {
         const result = {
             name: this.name,
@@ -30512,8 +30529,20 @@ class BaseFixer {
             result.output = output;
             result.success = exitCode === 0;
             if (!result.success) {
+                const isCustomCommand = this.hasCustomCommand();
+                const commandStr = command.join(' ');
                 result.error = `${this.name} exited with code ${exitCode}`;
-                core.setFailed(`${this.name} failed with exit code ${exitCode}`);
+                if (isCustomCommand) {
+                    core.error(`❌ Custom command failed: ${commandStr}`);
+                    core.error(`💡 Common fixes:`);
+                    core.error(`   • Ensure dependencies are installed (add 'npm ci' step before Felix)`);
+                    core.error(`   • Verify the command works locally: ${commandStr}`);
+                    core.error(`   • Check that npm scripts exist in package.json`);
+                    core.error(`   • Consider using built-in commands instead of custom ones`);
+                }
+                else {
+                    core.setFailed(`${this.name} failed with exit code ${exitCode}`);
+                }
             }
             result.changedFiles = await this.getChangedFiles();
         }
@@ -30609,6 +30638,10 @@ class ESLintFixer extends base_1.BaseFixer {
         }
     }
     getCommand() {
+        // Use custom command if provided
+        if (this.hasCustomCommand()) {
+            return this.getCustomCommand();
+        }
         const cmd = ['npx', 'eslint'];
         // Add config file if specified
         if (this.config.configFile) {
@@ -30725,6 +30758,10 @@ class MarkdownLintFixer extends base_1.BaseFixer {
         }
     }
     getCommand() {
+        // Use custom command if provided
+        if (this.hasCustomCommand()) {
+            return this.getCustomCommand();
+        }
         const cmd = ['npx', 'markdownlint-cli2'];
         // Add config file if specified
         if (this.config.configFile) {
@@ -30839,6 +30876,10 @@ class PrettierFixer extends base_1.BaseFixer {
         });
     }
     getCommand() {
+        // Use custom command if provided
+        if (this.hasCustomCommand()) {
+            return this.getCustomCommand();
+        }
         const cmd = ['npx', 'prettier'];
         // Add config file if specified
         if (this.config.configFile) {

@@ -50,6 +50,11 @@ export class PrettierFixer extends BaseFixer {
   }
 
   getCommand(): string[] {
+    // Use custom command if provided
+    if (this.hasCustomCommand()) {
+      return this.getCustomCommand()
+    }
+
     const cmd = ['npx', 'prettier']
 
     // Add config file if specified

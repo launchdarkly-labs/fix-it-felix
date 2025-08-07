@@ -13,6 +13,32 @@ export abstract class BaseFixer {
     this.paths = paths
   }
 
+  protected hasCustomCommand(): boolean {
+    return (
+      this.config.command && Array.isArray(this.config.command) && this.config.command.length > 0
+    )
+  }
+
+  protected getCustomCommand(): string[] {
+    if (!this.hasCustomCommand()) {
+      return []
+    }
+
+    // Check if paths should be appended (default: true)
+    const shouldAppendPaths = this.config.appendPaths !== false
+
+    // If appendPaths is enabled and paths are configured and not just default ['.'], append them to custom command
+    if (
+      shouldAppendPaths &&
+      this.paths.length > 0 &&
+      !(this.paths.length === 1 && this.paths[0] === '.')
+    ) {
+      return [...this.config.command, ...this.paths]
+    }
+
+    return [...this.config.command]
+  }
+
   abstract isAvailable(): Promise<boolean>
   abstract getCommand(): string[]
   abstract getExtensions(): string[]
@@ -53,8 +79,21 @@ export abstract class BaseFixer {
       result.success = exitCode === 0
 
       if (!result.success) {
+        const isCustomCommand = this.hasCustomCommand()
+        const commandStr = command.join(' ')
+
         result.error = `${this.name} exited with code ${exitCode}`
-        core.setFailed(`${this.name} failed with exit code ${exitCode}`)
+
+        if (isCustomCommand) {
+          core.error(`❌ Custom command failed: ${commandStr}`)
+          core.error(`💡 Common fixes:`)
+          core.error(`   • Ensure dependencies are installed (add 'npm ci' step before Felix)`)
+          core.error(`   • Verify the command works locally: ${commandStr}`)
+          core.error(`   • Check that npm scripts exist in package.json`)
+          core.error(`   • Consider using built-in commands instead of custom ones`)
+        } else {
+          core.setFailed(`${this.name} failed with exit code ${exitCode}`)
+        }
       }
 
       result.changedFiles = await this.getChangedFiles()
