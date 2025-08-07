@@ -14,22 +14,28 @@ export abstract class BaseFixer {
   }
 
   protected hasCustomCommand(): boolean {
-    return this.config.command && Array.isArray(this.config.command) && this.config.command.length > 0
+    return (
+      this.config.command && Array.isArray(this.config.command) && this.config.command.length > 0
+    )
   }
 
   protected getCustomCommand(): string[] {
     if (!this.hasCustomCommand()) {
       return []
     }
-    
+
     // Check if paths should be appended (default: true)
     const shouldAppendPaths = this.config.appendPaths !== false
-    
+
     // If appendPaths is enabled and paths are configured and not just default ['.'], append them to custom command
-    if (shouldAppendPaths && this.paths.length > 0 && !(this.paths.length === 1 && this.paths[0] === '.')) {
+    if (
+      shouldAppendPaths &&
+      this.paths.length > 0 &&
+      !(this.paths.length === 1 && this.paths[0] === '.')
+    ) {
       return [...this.config.command, ...this.paths]
     }
-    
+
     return [...this.config.command]
   }
 

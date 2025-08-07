@@ -1,9 +1,13 @@
 {
-  "fixers": ["prettier"],
+  "fixers": ["eslint", "prettier"],
   "paths": ["src", "examples", "tests", "*.md", "jest.config.js", "test-felix.js"],
   "ignore": ["node_modules/**", "dist/**", "build/**", ".git/**", "coverage/**", "test-files/**", "package.json", "package-lock.json", ".github/**"],
+  "eslint": {
+    "command": ["npm", "run", "lint:fix"],
+    "appendPaths": false
+  },
   "prettier": {
-    "configFile": ".prettierrc",
-    "extensions": [".js", ".jsx", ".ts", ".tsx", ".json", ".css", ".scss", ".md", ".yml", ".yaml"]
+    "command": ["npm", "run", "format:fix"],
+    "appendPaths": false
   }
 }
