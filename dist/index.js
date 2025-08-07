@@ -30447,6 +30447,21 @@ class BaseFixer {
         this.config = config;
         this.paths = paths;
     }
+    hasCustomCommand() {
+        return this.config.command && Array.isArray(this.config.command) && this.config.command.length > 0;
+    }
+    getCustomCommand() {
+        if (!this.hasCustomCommand()) {
+            return [];
+        }
+        // Check if paths should be appended (default: true)
+        const shouldAppendPaths = this.config.appendPaths !== false;
+        // If appendPaths is enabled and paths are configured and not just default ['.'], append them to custom command
+        if (shouldAppendPaths && this.paths.length > 0 && !(this.paths.length === 1 && this.paths[0] === '.')) {
+            return [...this.config.command, ...this.paths];
+        }
+        return [...this.config.command];
+    }
     async run() {
         const result = {
             name: this.name,
@@ -30574,6 +30589,10 @@ class ESLintFixer extends base_1.BaseFixer {
         }
     }
     getCommand() {
+        // Use custom command if provided
+        if (this.hasCustomCommand()) {
+            return this.getCustomCommand();
+        }
         const cmd = ['npx', 'eslint'];
         // Add config file if specified
         if (this.config.configFile) {
@@ -30690,6 +30709,10 @@ class MarkdownLintFixer extends base_1.BaseFixer {
         }
     }
     getCommand() {
+        // Use custom command if provided
+        if (this.hasCustomCommand()) {
+            return this.getCustomCommand();
+        }
         const cmd = ['npx', 'markdownlint-cli2'];
         // Add config file if specified
         if (this.config.configFile) {
@@ -30804,6 +30827,10 @@ class PrettierFixer extends base_1.BaseFixer {
         });
     }
     getCommand() {
+        // Use custom command if provided
+        if (this.hasCustomCommand()) {
+            return this.getCustomCommand();
+        }
         const cmd = ['npx', 'prettier'];
         // Add config file if specified
         if (this.config.configFile) {

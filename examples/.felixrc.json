@@ -15,5 +15,20 @@
   "markdownlint": {
     "configFile": ".markdownlint.json",
     "paths": ["docs", "README.md"]
+  },
+  "_examples": {
+    "_comment": "Examples of using custom commands instead of built-in fixer commands",
+    "eslint_with_npm_script": {
+      "command": ["npm", "run", "lint:fix"],
+      "appendPaths": true
+    },
+    "prettier_global_script": {
+      "command": ["npm", "run", "format"],
+      "appendPaths": false
+    },
+    "markdownlint_with_args": {
+      "command": ["npm", "run", "lint:markdown", "--"],
+      "appendPaths": true
+    }
   }
 }

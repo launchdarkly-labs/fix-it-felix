@@ -16,15 +16,21 @@ export interface FelixConfig {
     configFile?: string
     extensions?: string[]
     paths?: string[]
+    command?: string[]
+    appendPaths?: boolean
   }
   prettier?: {
     configFile?: string
     extensions?: string[]
     paths?: string[]
+    command?: string[]
+    appendPaths?: boolean
   }
   markdownlint?: {
     configFile?: string
     paths?: string[]
+    command?: string[]
+    appendPaths?: boolean
   }
 }
 

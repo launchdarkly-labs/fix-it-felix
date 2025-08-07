@@ -23,6 +23,11 @@ export class MarkdownLintFixer extends BaseFixer {
   }
 
   getCommand(): string[] {
+    // Use custom command if provided
+    if (this.hasCustomCommand()) {
+      return this.getCustomCommand()
+    }
+
     const cmd = ['npx', 'markdownlint-cli2']
 
     // Add config file if specified

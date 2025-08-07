@@ -99,6 +99,32 @@ describe('PrettierFixer', () => {
 
       expect(command).toContain('**/*.{js,css}')
     })
+
+    it('should use custom command when configured', () => {
+      const config = { command: ['npm', 'run', 'format'] }
+      const fixer = new PrettierFixer(config)
+      const command = fixer.getCommand()
+
+      expect(command).toEqual(['npm', 'run', 'format'])
+    })
+
+    it('should append paths to custom command when paths are not default', () => {
+      const config = { command: ['npm', 'run', 'format'] }
+      const paths = ['src', 'docs']
+      const fixer = new PrettierFixer(config, paths)
+      const command = fixer.getCommand()
+
+      expect(command).toEqual(['npm', 'run', 'format', 'src', 'docs'])
+    })
+
+    it('should not append paths when appendPaths is false', () => {
+      const config = { command: ['npm', 'run', 'format'], appendPaths: false }
+      const paths = ['src', 'docs']
+      const fixer = new PrettierFixer(config, paths)
+      const command = fixer.getCommand()
+
+      expect(command).toEqual(['npm', 'run', 'format'])
+    })
   })
 
   describe('getExtensions()', () => {
@@ -168,6 +194,23 @@ describe('ESLintFixer', () => {
       expect(command).toContain('src')
       expect(command).toContain('scripts')
     })
+
+    it('should use custom command when configured', () => {
+      const config = { command: ['npm', 'run', 'lint:fix'] }
+      const fixer = new ESLintFixer(config)
+      const command = fixer.getCommand()
+
+      expect(command).toEqual(['npm', 'run', 'lint:fix'])
+    })
+
+    it('should not append paths when appendPaths is false', () => {
+      const config = { command: ['npm', 'run', 'lint:fix'], appendPaths: false }
+      const paths = ['src', 'lib']
+      const fixer = new ESLintFixer(config, paths)
+      const command = fixer.getCommand()
+
+      expect(command).toEqual(['npm', 'run', 'lint:fix'])
+    })
   })
 
   describe('getExtensions()', () => {
@@ -225,6 +268,23 @@ describe('MarkdownLintFixer', () => {
 
       expect(command).toContain('README.md')
       expect(command).toContain('docs/**/*.md')
+    })
+
+    it('should use custom command when configured', () => {
+      const config = { command: ['npm', 'run', 'lint:markdown'] }
+      const fixer = new MarkdownLintFixer(config)
+      const command = fixer.getCommand()
+
+      expect(command).toEqual(['npm', 'run', 'lint:markdown'])
+    })
+
+    it('should not append paths when appendPaths is false', () => {
+      const config = { command: ['npm', 'run', 'lint:markdown'], appendPaths: false }
+      const paths = ['docs', 'guides']
+      const fixer = new MarkdownLintFixer(config, paths)
+      const command = fixer.getCommand()
+
+      expect(command).toEqual(['npm', 'run', 'lint:markdown'])
     })
   })
 
