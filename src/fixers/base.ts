@@ -92,8 +92,9 @@ export abstract class BaseFixer {
           core.error(`   • Check that npm scripts exist in package.json`)
           core.error(`   • Consider using built-in commands instead of custom ones`)
         } else {
-          core.setFailed(`${this.name} failed with exit code ${exitCode}`)
+          core.error(`❌ ${this.name} failed with exit code ${exitCode}`)
         }
+        // Note: Don't call core.setFailed() here as it would prevent other fixers from running
       }
 
       result.changedFiles = await this.getChangedFiles()
