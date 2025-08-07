@@ -120,7 +120,17 @@ Control Felix through action inputs:
 
 ### Repository Configuration
 
-For advanced settings, create a `.felixrc.json` file:
+For simple configurations, create a `.felixrc.json` file:
+
+```json
+{
+  "fixers": ["eslint", "prettier", "markdownlint"],
+  "paths": ["src", "docs"],
+  "ignore": ["node_modules/**", "dist/**"]
+}
+```
+
+For advanced settings with custom configurations:
 
 ```json
 {
