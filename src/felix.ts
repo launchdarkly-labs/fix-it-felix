@@ -7,6 +7,7 @@ import { Context } from '@actions/github/lib/context'
 import { ConfigManager } from './config'
 import { createFixer, AVAILABLE_FIXERS } from './fixers'
 import { FelixInputs, FelixResult, FixerResult } from './types'
+import { minimatch } from 'minimatch'
 
 export class FixitFelix {
   private inputs: FelixInputs
@@ -398,8 +399,9 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
         return files
     }
 
-    return files.filter(file => {
+    const filteredFiles = files.filter(file => {
       const ext = path.extname(file).toLowerCase()
+      
       if (!extensions.includes(ext)) {
         return false
       }
@@ -412,16 +414,11 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
 
       // Check if file matches any of the configured paths
       return configuredPaths.some(configPath => {
-        // Handle both directory paths and glob-like patterns
-        if (configPath.endsWith('/') || !path.extname(configPath)) {
-          // It's a directory path - check if file is within it
-          const normalizedPath = configPath.endsWith('/') ? configPath.slice(0, -1) : configPath
-          return file.startsWith(normalizedPath + '/') || file === normalizedPath
-        } else {
-          // It's a specific file pattern - check direct match
-          return file === configPath || file.includes(configPath)
-        }
+        // Use minimatch for proper glob pattern support
+        return minimatch(file, configPath)
       })
     })
+    
+    return filteredFiles
   }
 }
