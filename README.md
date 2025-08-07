@@ -48,6 +48,8 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      # ⚠️ REQUIRED: Install dependencies before running Felix
+      # This ensures your project's exact tool versions and configs are used
       - name: Install dependencies
         run: npm ci
 

@@ -2,6 +2,24 @@
 
 This guide covers all configuration options for Fix-it Felix.
 
+## ⚠️ Important: Install Dependencies First
+
+**Felix requires dependencies to be installed before it runs.** This ensures:
+
+- ✅ **Version consistency** - Uses your project's exact tool versions
+- ✅ **Config compatibility** - ESLint/Prettier plugins work correctly  
+- ✅ **Custom commands work** - npm scripts have access to dependencies
+
+**Always include `npm ci` (or `yarn install`) before Felix in your workflow:**
+
+```yaml
+- name: Install dependencies
+  run: npm ci
+  
+- name: Run Fix-it Felix
+  uses: launchdarkly-labs/fix-it-felix@v1
+```
+
 ## Configuration Sources
 
 Configuration is loaded in this priority order:
@@ -27,16 +45,30 @@ Configure Felix behavior through GitHub Action inputs:
 ### Example
 
 ```yaml
-- name: Run Fix-it Felix
-  uses: launchdarkly-labs/fix-it-felix@v1
-  with:
-    fixers: 'eslint,prettier,markdownlint'
-    paths: 'src,docs,scripts'
-    commit_message: '🤖 Auto-fix code issues'
-    config_path: '.custom-felix.json'
-    dry_run: false
-    skip_label: 'no-autofix'
-    allowed_bots: 'dependabot,renovate'
+steps:
+  - name: Checkout
+    uses: actions/checkout@v4
+    
+  - name: Setup Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: '20'
+      cache: 'npm'
+      
+  # ⚠️ REQUIRED: Install dependencies before Felix
+  - name: Install dependencies  
+    run: npm ci
+    
+  - name: Run Fix-it Felix
+    uses: launchdarkly-labs/fix-it-felix@v1
+    with:
+      fixers: 'eslint,prettier,markdownlint'
+      paths: 'src,docs,scripts'
+      commit_message: '🤖 Auto-fix code issues'
+      config_path: '.custom-felix.json'
+      dry_run: false
+      skip_label: 'no-autofix'
+      allowed_bots: 'dependabot,renovate'
 ```
 
 ## Repository Configuration (`.felixrc.json`)
@@ -162,10 +194,13 @@ Replace built-in fixer commands with your own npm scripts or custom commands.
 
 ### Why Use Custom Commands?
 
-- Use your existing npm scripts with custom configurations
-- Run tools through build systems or custom wrappers
-- Use different versions or forks of linting tools
-- Integrate with monorepo tools or custom toolchains
+- **Use your existing npm scripts** - Leverage existing project setup
+- **Ensure version consistency** - Use project's exact tool versions  
+- **Support complex configs** - Work with ESLint/Prettier plugins
+- **Custom toolchains** - Integrate with monorepos, build systems
+- **Environment variables** - Use `NODE_OPTIONS` and custom env vars
+
+**⚠️ Requires dependencies:** Custom commands need `npm ci` to run first.
 
 ### Basic Usage
 

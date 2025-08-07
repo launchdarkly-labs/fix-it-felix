@@ -79,8 +79,21 @@ export abstract class BaseFixer {
       result.success = exitCode === 0
 
       if (!result.success) {
+        const isCustomCommand = this.hasCustomCommand()
+        const commandStr = command.join(' ')
+        
         result.error = `${this.name} exited with code ${exitCode}`
-        core.setFailed(`${this.name} failed with exit code ${exitCode}`)
+        
+        if (isCustomCommand) {
+          core.error(`❌ Custom command failed: ${commandStr}`)
+          core.error(`💡 Common fixes:`)
+          core.error(`   • Ensure dependencies are installed (add 'npm ci' step before Felix)`)
+          core.error(`   • Verify the command works locally: ${commandStr}`)
+          core.error(`   • Check that npm scripts exist in package.json`)
+          core.error(`   • Consider using built-in commands instead of custom ones`)
+        } else {
+          core.setFailed(`${this.name} failed with exit code ${exitCode}`)
+        }
       }
 
       result.changedFiles = await this.getChangedFiles()
