@@ -30094,7 +30094,8 @@ class FixitFelix {
         const result = {
             fixesApplied: false,
             changedFiles: [],
-            fixerResults: []
+            fixerResults: [],
+            hasFailures: false
         };
         // Check if we should skip processing
         if (await this.shouldSkip()) {
@@ -30143,7 +30144,8 @@ class FixitFelix {
                 core.info(`✅ ${fixerName} fixed ${fixerResult.changedFiles.length} files`);
             }
             else if (!fixerResult.success) {
-                core.warning(`❌ ${fixerName} failed: ${fixerResult.error || 'Unknown error'}`);
+                result.hasFailures = true;
+                core.error(`❌ ${fixerName} failed: ${fixerResult.error || 'Unknown error'}`);
             }
             else {
                 core.info(`✨ ${fixerName} found no issues to fix`);
@@ -30541,8 +30543,9 @@ class BaseFixer {
                     core.error(`   • Consider using built-in commands instead of custom ones`);
                 }
                 else {
-                    core.setFailed(`${this.name} failed with exit code ${exitCode}`);
+                    core.error(`❌ ${this.name} failed with exit code ${exitCode}`);
                 }
+                // Note: Don't call core.setFailed() here as it would prevent other fixers from running
             }
             result.changedFiles = await this.getChangedFiles();
         }
@@ -30992,7 +30995,10 @@ async function run() {
         const result = await felix.run();
         core.setOutput('fixes_applied', result.fixesApplied);
         core.setOutput('changed_files', result.changedFiles.join(','));
-        if (result.fixesApplied) {
+        if (result.hasFailures) {
+            core.setFailed('One or more fixers failed');
+        }
+        else if (result.fixesApplied) {
             core.info(`✅ Fix-it Felix applied fixes to ${result.changedFiles.length} files`);
         }
         else {
