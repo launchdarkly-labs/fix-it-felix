@@ -30083,6 +30083,7 @@ const fs = __importStar(__nccwpck_require__(9896));
 const path = __importStar(__nccwpck_require__(6928));
 const config_1 = __nccwpck_require__(2973);
 const fixers_1 = __nccwpck_require__(8413);
+const minimatch_1 = __nccwpck_require__(6507);
 class FixitFelix {
     constructor(inputs, context) {
         this.inputs = inputs;
@@ -30409,7 +30410,7 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`;
             default:
                 return files;
         }
-        return files.filter(file => {
+        const filteredFiles = files.filter(file => {
             const ext = path.extname(file).toLowerCase();
             if (!extensions.includes(ext)) {
                 return false;
@@ -30421,18 +30422,11 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`;
             }
             // Check if file matches any of the configured paths
             return configuredPaths.some(configPath => {
-                // Handle both directory paths and glob-like patterns
-                if (configPath.endsWith('/') || !path.extname(configPath)) {
-                    // It's a directory path - check if file is within it
-                    const normalizedPath = configPath.endsWith('/') ? configPath.slice(0, -1) : configPath;
-                    return file.startsWith(normalizedPath + '/') || file === normalizedPath;
-                }
-                else {
-                    // It's a specific file pattern - check direct match
-                    return file === configPath || file.includes(configPath);
-                }
+                // Use minimatch for proper glob pattern support
+                return (0, minimatch_1.minimatch)(file, configPath);
             });
         });
+        return filteredFiles;
     }
 }
 exports.FixitFelix = FixitFelix;
