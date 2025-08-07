@@ -28,7 +28,7 @@
       "appendPaths": true
     },
     "prettier_global_script": {
-      "name": "prettier", 
+      "name": "prettier",
       "command": ["npm", "run", "format"],
       "appendPaths": false
     },

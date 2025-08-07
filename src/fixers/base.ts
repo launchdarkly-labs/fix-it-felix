@@ -15,7 +15,9 @@ export abstract class BaseFixer {
 
   protected hasCustomCommand(): boolean {
     return !!(
-      this.config.command && Array.isArray(this.config.command) && this.config.command.length > 0
+      this.config.command &&
+      Array.isArray(this.config.command) &&
+      this.config.command.length > 0
     )
   }
 
