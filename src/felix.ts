@@ -231,8 +231,9 @@ export class FixitFelix {
         } catch (pushError) {
           core.warning(`Push failed, attempting to sync with remote and retry: ${pushError}`)
           try {
-            // Try to pull remote changes and merge
-            await exec.exec('git', ['pull', 'origin', branchName, '--rebase'])
+            // Use more reliable rebase approach
+            await exec.exec('git', ['fetch', 'origin'])
+            await exec.exec('git', ['rebase', `origin/${branchName}`])
             await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`])
             core.info(`✅ Successfully pushed after rebase`)
           } catch (retryError) {
@@ -291,13 +292,12 @@ export class FixitFelix {
       
       // First, try to fetch the remote branch to check if it exists
       try {
-        await exec.exec('git', ['fetch', 'origin', `${branchName}:${branchName}`])
+        await exec.exec('git', ['fetch', 'origin', branchName])
         core.info(`📥 Fetched remote branch: ${branchName}`)
         
-        // If fetch succeeds, checkout the branch and pull latest changes
+        // If fetch succeeds, checkout the branch (which will track remote automatically)
         await exec.exec('git', ['checkout', branchName])
-        await exec.exec('git', ['pull', 'origin', branchName])
-        core.info(`✅ Successfully synced with remote branch: ${branchName}`)
+        core.info(`✅ Successfully checked out remote branch: ${branchName}`)
         
       } catch (fetchError) {
         core.info(`Remote branch ${branchName} doesn't exist, creating locally`)
