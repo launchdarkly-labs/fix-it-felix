@@ -24,7 +24,8 @@ export class FixitFelix {
     const result: FelixResult = {
       fixesApplied: false,
       changedFiles: [],
-      fixerResults: []
+      fixerResults: [],
+      hasFailures: false
     }
 
     // Check if we should skip processing
@@ -89,7 +90,8 @@ export class FixitFelix {
         result.fixesApplied = true
         core.info(`✅ ${fixerName} fixed ${fixerResult.changedFiles.length} files`)
       } else if (!fixerResult.success) {
-        core.warning(`❌ ${fixerName} failed: ${fixerResult.error || 'Unknown error'}`)
+        result.hasFailures = true
+        core.error(`❌ ${fixerName} failed: ${fixerResult.error || 'Unknown error'}`)
       } else {
         core.info(`✨ ${fixerName} found no issues to fix`)
       }

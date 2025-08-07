@@ -42,4 +42,5 @@ export interface FelixResult {
   fixesApplied: boolean
   changedFiles: string[]
   fixerResults: FixerResult[]
+  hasFailures: boolean
 }

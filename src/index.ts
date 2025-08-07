@@ -20,7 +20,9 @@ async function run(): Promise<void> {
     core.setOutput('fixes_applied', result.fixesApplied)
     core.setOutput('changed_files', result.changedFiles.join(','))
 
-    if (result.fixesApplied) {
+    if (result.hasFailures) {
+      core.setFailed('One or more fixers failed')
+    } else if (result.fixesApplied) {
       core.info(`✅ Fix-it Felix applied fixes to ${result.changedFiles.length} files`)
     } else {
       core.info('✨ No fixes needed - code is already clean!')
