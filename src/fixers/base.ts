@@ -29,19 +29,16 @@ export abstract class BaseFixer {
     // Check if paths should be appended (default: true)
     const shouldAppendPaths = this.config.appendPaths !== false
 
-    // Ensure command exists and is an array
-    const command = this.config.command || []
-
     // If appendPaths is enabled and paths are configured and not just default ['.'], append them to custom command
     if (
       shouldAppendPaths &&
       this.paths.length > 0 &&
       !(this.paths.length === 1 && this.paths[0] === '.')
     ) {
-      return [...command, ...this.paths]
+      return [...this.config.command!, ...this.paths]
     }
 
-    return [...command]
+    return [...this.config.command!]
   }
 
   abstract isAvailable(): Promise<boolean>

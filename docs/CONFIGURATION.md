@@ -114,7 +114,7 @@ This new format eliminates the need to specify fixers twice by allowing configur
 
 | Option   | Type                     | Description                             | Default |
 | -------- | ------------------------ | --------------------------------------- | ------- |
-| `fixers` | `(string \| FixerConfig)[]` | List of fixers to run (strings or objects) | `[]`    |
+| `fixers` | `(string \| InlineFixerConfig)[]` | List of fixers to run (strings or objects) | `[]`    |
 | `paths`  | `string[]`               | Global paths for all fixers             | `["."]` |
 | `ignore` | `string[]`               | Glob patterns to ignore                 | See below |
 
@@ -123,13 +123,13 @@ This new format eliminates the need to specify fixers twice by allowing configur
 ["node_modules/**", "dist/**", "build/**", ".git/**"]
 ```
 
-### Per-Fixer Configuration (`FixerConfig`)
+### Per-Fixer Configuration
 
 Each fixer can be configured with these options (whether as an inline object in the fixers array or using the legacy format):
 
 | Option        | Type                | Description                                  | Default |
 | ------------- | ------------------- | -------------------------------------------- | ------- |
-| `name`        | `string`            | Fixer name (required for inline objects)    | (none)  |
+| `name`        | `string`            | Fixer name (**required** for inline objects) | (none)  |
 | `configFile`  | `string`            | Path to fixer's config file                 | (none)  |
 | `extensions`  | `string[]`          | File extensions to process                   | Built-in defaults |
 | `paths`       | `string[]`          | Fixer-specific paths (overrides global)     | Global paths |

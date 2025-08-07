@@ -29989,7 +29989,13 @@ class ConfigManager {
     getFixers() {
         // Config file takes precedence over input
         if (this.config.fixers && this.config.fixers.length > 0) {
-            return this.config.fixers.map(fixer => this.getFixerName(fixer));
+            try {
+                return this.config.fixers.map(fixer => this.getFixerName(fixer));
+            }
+            catch (error) {
+                core.error(`Invalid fixer configuration: ${error}`);
+                throw error;
+            }
         }
         return this.inputs.fixers
             .split(',')
@@ -30000,7 +30006,11 @@ class ConfigManager {
         if (typeof fixer === 'string') {
             return fixer;
         }
-        return fixer.name || 'unnamed-fixer';
+        // Since InlineFixerConfig requires name, this should always be present
+        if (!fixer.name) {
+            throw new Error('Inline fixer configuration must have a "name" property');
+        }
+        return fixer.name;
     }
     getPaths() {
         // Priority: action input > config file > default
@@ -30512,15 +30522,13 @@ class BaseFixer {
         }
         // Check if paths should be appended (default: true)
         const shouldAppendPaths = this.config.appendPaths !== false;
-        // Ensure command exists and is an array
-        const command = this.config.command || [];
         // If appendPaths is enabled and paths are configured and not just default ['.'], append them to custom command
         if (shouldAppendPaths &&
             this.paths.length > 0 &&
             !(this.paths.length === 1 && this.paths[0] === '.')) {
-            return [...command, ...this.paths];
+            return [...this.config.command, ...this.paths];
         }
-        return [...command];
+        return [...this.config.command];
     }
     async run() {
         const result = {

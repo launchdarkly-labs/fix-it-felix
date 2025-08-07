@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import * as fs from 'fs'
 import * as path from 'path'
-import { FelixConfig, FelixInputs, FixerConfig, FixerItem } from './types'
+import { FelixConfig, FelixInputs, FixerConfig, FixerItem, InlineFixerConfig } from './types'
 
 export class ConfigManager {
   private inputs: FelixInputs
@@ -30,7 +30,12 @@ export class ConfigManager {
   getFixers(): string[] {
     // Config file takes precedence over input
     if (this.config.fixers && this.config.fixers.length > 0) {
-      return this.config.fixers.map(fixer => this.getFixerName(fixer))
+      try {
+        return this.config.fixers.map(fixer => this.getFixerName(fixer))
+      } catch (error) {
+        core.error(`Invalid fixer configuration: ${error}`)
+        throw error
+      }
     }
 
     return this.inputs.fixers
@@ -43,7 +48,11 @@ export class ConfigManager {
     if (typeof fixer === 'string') {
       return fixer
     }
-    return fixer.name || 'unnamed-fixer'
+    // Since InlineFixerConfig requires name, this should always be present
+    if (!fixer.name) {
+      throw new Error('Inline fixer configuration must have a "name" property')
+    }
+    return fixer.name
   }
 
   getPaths(): string[] {

@@ -18,7 +18,11 @@ export interface FixerConfig {
   env?: Record<string, string>
 }
 
-export type FixerItem = string | FixerConfig
+export interface InlineFixerConfig extends FixerConfig {
+  name: string // Required for inline configurations
+}
+
+export type FixerItem = string | InlineFixerConfig
 
 export interface FelixConfig {
   fixers?: FixerItem[]
