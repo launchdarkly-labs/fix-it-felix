@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import * as fs from 'fs'
 import * as path from 'path'
-import { FelixConfig, FelixInputs } from './types'
+import { FelixConfig, FelixInputs, FixerConfig, FixerItem } from './types'
 
 export class ConfigManager {
   private inputs: FelixInputs
@@ -30,13 +30,20 @@ export class ConfigManager {
   getFixers(): string[] {
     // Config file takes precedence over input
     if (this.config.fixers && this.config.fixers.length > 0) {
-      return this.config.fixers
+      return this.config.fixers.map(fixer => this.getFixerName(fixer))
     }
 
     return this.inputs.fixers
       .split(',')
       .map(f => f.trim())
       .filter(f => f.length > 0)
+  }
+
+  private getFixerName(fixer: FixerItem): string {
+    if (typeof fixer === 'string') {
+      return fixer
+    }
+    return fixer.name || 'unnamed-fixer'
   }
 
   getPaths(): string[] {
@@ -71,8 +78,23 @@ export class ConfigManager {
     return this.config.ignore || ['node_modules/**', 'dist/**', 'build/**', '.git/**']
   }
 
-  getFixerConfig(fixerName: string): any {
-    return this.config[fixerName as keyof FelixConfig] || {}
+  getFixerConfig(fixerName: string): FixerConfig {
+    // First check the new format - inline fixer objects in the fixers array
+    if (this.config.fixers) {
+      for (const fixer of this.config.fixers) {
+        if (typeof fixer === 'object' && this.getFixerName(fixer) === fixerName) {
+          return fixer
+        }
+      }
+    }
+
+    // Fall back to legacy format for backward compatibility
+    const legacyConfig = this.config[fixerName as keyof FelixConfig]
+    if (legacyConfig && typeof legacyConfig === 'object') {
+      return legacyConfig as FixerConfig
+    }
+
+    return {}
   }
 
   getAllowedBots(): string[] {

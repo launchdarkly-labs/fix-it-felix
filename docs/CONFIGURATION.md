@@ -85,70 +85,110 @@ Create a `.felixrc.json` file in your repository root for advanced configuration
 }
 ```
 
+### Advanced Configuration with Inline Fixer Objects
+
+For more complex setups, you can mix simple fixer names with inline configuration objects:
+
+```json
+{
+  "fixers": [
+    "eslint",
+    {
+      "name": "prettier",
+      "command": ["yarn", "prettier:write:path"],
+      "appendPaths": true
+    },
+    {
+      "name": "oxlint", 
+      "command": ["yarn", "oxlint:js:path", "--fix"],
+      "appendPaths": true
+    }
+  ],
+  "paths": ["src", "docs"]
+}
+```
+
+This new format eliminates the need to specify fixers twice by allowing configuration to be defined inline.
+
 ### Global Configuration Options
 
-| Option   | Type       | Description                             | Default |
-| -------- | ---------- | --------------------------------------- | ------- |
-| `fixers` | `string[]` | List of fixers to run                   | `[]`    |
-| `paths`  | `string[]` | Global paths for all fixers             | `["."]` |
-| `ignore` | `string[]` | Glob patterns to ignore                 | See below |
+| Option   | Type                     | Description                             | Default |
+| -------- | ------------------------ | --------------------------------------- | ------- |
+| `fixers` | `(string \| FixerConfig)[]` | List of fixers to run (strings or objects) | `[]`    |
+| `paths`  | `string[]`               | Global paths for all fixers             | `["."]` |
+| `ignore` | `string[]`               | Glob patterns to ignore                 | See below |
 
 **Default ignore patterns:**
 ```json
 ["node_modules/**", "dist/**", "build/**", ".git/**"]
 ```
 
-### Per-Fixer Configuration
+### Per-Fixer Configuration (`FixerConfig`)
 
-Each fixer can be configured with these options:
+Each fixer can be configured with these options (whether as an inline object in the fixers array or using the legacy format):
 
-| Option        | Type       | Description                                  | Default |
-| ------------- | ---------- | -------------------------------------------- | ------- |
-| `configFile`  | `string`   | Path to fixer's config file                 | (none)  |
-| `extensions`  | `string[]` | File extensions to process                   | Built-in defaults |
-| `paths`       | `string[]` | Fixer-specific paths (overrides global)     | Global paths |
-| `command`     | `string[]` | Custom command to run instead of built-in   | (none)  |
-| `appendPaths` | `boolean`  | Whether to append paths to custom commands   | `true`  |
+| Option        | Type                | Description                                  | Default |
+| ------------- | ------------------- | -------------------------------------------- | ------- |
+| `name`        | `string`            | Fixer name (required for inline objects)    | (none)  |
+| `configFile`  | `string`            | Path to fixer's config file                 | (none)  |
+| `extensions`  | `string[]`          | File extensions to process                   | Built-in defaults |
+| `paths`       | `string[]`          | Fixer-specific paths (overrides global)     | Global paths |
+| `command`     | `string[]`          | Custom command to run instead of built-in   | (none)  |
+| `appendPaths` | `boolean`           | Whether to append paths to custom commands   | `true`  |
+| `env`         | `Record<string, string>` | Environment variables for custom commands    | `{}`    |
 
 ### Examples
 
-#### ESLint Configuration
+#### Legacy Format (Still Supported)
 
 ```json
 {
+  "fixers": ["eslint", "prettier", "markdownlint"],
   "eslint": {
     "configFile": ".eslintrc.custom.js",
     "extensions": [".js", ".jsx", ".ts", ".tsx"],
     "paths": ["src", "scripts"],
     "command": ["npm", "run", "lint:fix"],
     "appendPaths": true
-  }
-}
-```
-
-#### Prettier Configuration
-
-```json
-{
+  },
   "prettier": {
     "configFile": ".prettierrc.json",
     "extensions": [".js", ".jsx", ".ts", ".tsx", ".json", ".md"],
     "paths": ["src", "docs"],
     "command": ["npm", "run", "format"],
     "appendPaths": false
-  }
-}
-```
-
-#### Markdownlint Configuration
-
-```json
-{
+  },
   "markdownlint": {
     "configFile": ".markdownlint.yml",
     "paths": ["docs", "*.md"],
     "command": ["npm", "run", "lint:markdown"]
   }
+}
+```
+
+#### New Inline Format (Recommended)
+
+```json
+{
+  "fixers": [
+    {
+      "name": "eslint",
+      "configFile": ".eslintrc.custom.js",
+      "extensions": [".js", ".jsx", ".ts", ".tsx"],
+      "paths": ["src", "scripts"],
+      "command": ["npm", "run", "lint:fix"],
+      "appendPaths": true
+    },
+    {
+      "name": "prettier",
+      "configFile": ".prettierrc.json",
+      "extensions": [".js", ".jsx", ".ts", ".tsx", ".json", ".md"],
+      "paths": ["src", "docs"],
+      "command": ["npm", "run", "format"],
+      "appendPaths": false
+    },
+    "markdownlint"
+  ]
 }
 ```
 
@@ -321,6 +361,7 @@ Result: `npm run format:all` and `npm run lint:project`
 
 ## Complete Configuration Example
 
+### Legacy Format
 ```json
 {
   "fixers": ["eslint", "prettier", "markdownlint"],
@@ -352,6 +393,45 @@ Result: `npm run format:all` and `npm run lint:project`
     "command": ["npm", "run", "lint:markdown"],
     "appendPaths": true
   }
+}
+```
+
+### New Inline Format (Recommended)
+```json
+{
+  "fixers": [
+    {
+      "name": "eslint",
+      "configFile": ".eslintrc.js",
+      "extensions": [".js", ".jsx", ".ts", ".tsx"],
+      "paths": ["src", "scripts"],
+      "command": ["npm", "run", "lint:fix"],
+      "appendPaths": true
+    },
+    {
+      "name": "prettier",
+      "configFile": ".prettierrc.json", 
+      "extensions": [".js", ".jsx", ".ts", ".tsx", ".json", ".css", ".scss", ".md"],
+      "paths": ["src", "docs", "examples"],
+      "command": ["npm", "run", "format"],
+      "appendPaths": false
+    },
+    {
+      "name": "markdownlint",
+      "configFile": ".markdownlint.yml",
+      "paths": ["docs", "README.md", "CHANGELOG.md"],
+      "command": ["npm", "run", "lint:markdown"],
+      "appendPaths": true
+    }
+  ],
+  "paths": ["src/**/*", "docs/**/*"],
+  "ignore": [
+    "node_modules/**",
+    "dist/**", 
+    "build/**",
+    "coverage/**",
+    "*.min.js"
+  ]
 }
 ```
 

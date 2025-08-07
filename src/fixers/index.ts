@@ -3,12 +3,13 @@ import { ESLintFixer } from './eslint'
 import { PrettierFixer } from './prettier'
 import { MarkdownLintFixer } from './markdownlint'
 import { ConfigManager } from '../config'
+import { FixerConfig } from '../types'
 
 export { BaseFixer }
 
 export function createFixer(
   name: string,
-  config: any = {},
+  config: FixerConfig = {},
   paths: string[] = ['.'],
   configManager?: ConfigManager
 ): BaseFixer | null {

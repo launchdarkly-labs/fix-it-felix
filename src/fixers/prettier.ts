@@ -3,11 +3,12 @@ import * as exec from '@actions/exec'
 import { BaseFixer } from './base'
 import { ConfigManager } from '../config'
 import { minimatch } from 'minimatch'
+import { FixerConfig } from '../types'
 
 export class PrettierFixer extends BaseFixer {
   private configManager?: ConfigManager
 
-  constructor(config: any = {}, paths: string[] = ['.'], configManager?: ConfigManager) {
+  constructor(config: FixerConfig = {}, paths: string[] = ['.'], configManager?: ConfigManager) {
     super('prettier', config, paths)
     this.configManager = configManager
   }
