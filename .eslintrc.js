@@ -5,7 +5,8 @@ module.exports = {
   extends: ['eslint:recommended'],
   env: {
     node: true,
-    es2020: true
+    es2020: true,
+    jest: true
   },
   parserOptions: {
     ecmaVersion: 2020,
@@ -15,8 +16,7 @@ module.exports = {
     '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/no-unused-vars': 'error',
     'prefer-const': 'error',
-    'no-var': 'error',
-    'no-undef': 'off' // Turn off for TypeScript
+    'no-var': 'error'
   },
   ignorePatterns: ['dist/', 'node_modules/', '*.js']
 }
