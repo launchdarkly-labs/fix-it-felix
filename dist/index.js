@@ -29989,12 +29989,28 @@ class ConfigManager {
     getFixers() {
         // Config file takes precedence over input
         if (this.config.fixers && this.config.fixers.length > 0) {
-            return this.config.fixers;
+            try {
+                return this.config.fixers.map(fixer => this.getFixerName(fixer));
+            }
+            catch (error) {
+                core.error(`Invalid fixer configuration: ${error}`);
+                throw error;
+            }
         }
         return this.inputs.fixers
             .split(',')
             .map(f => f.trim())
             .filter(f => f.length > 0);
+    }
+    getFixerName(fixer) {
+        if (typeof fixer === 'string') {
+            return fixer;
+        }
+        // Since InlineFixerConfig requires name, this should always be present
+        if (!fixer.name) {
+            throw new Error('Inline fixer configuration must have a "name" property');
+        }
+        return fixer.name;
     }
     getPaths() {
         // Priority: action input > config file > default
@@ -30022,7 +30038,20 @@ class ConfigManager {
         return this.config.ignore || ['node_modules/**', 'dist/**', 'build/**', '.git/**'];
     }
     getFixerConfig(fixerName) {
-        return this.config[fixerName] || {};
+        // First check the new format - inline fixer objects in the fixers array
+        if (this.config.fixers) {
+            for (const fixer of this.config.fixers) {
+                if (typeof fixer === 'object' && this.getFixerName(fixer) === fixerName) {
+                    return fixer;
+                }
+            }
+        }
+        // Fall back to legacy format for backward compatibility
+        const legacyConfig = this.config[fixerName];
+        if (legacyConfig && typeof legacyConfig === 'object') {
+            return legacyConfig;
+        }
+        return {};
     }
     getAllowedBots() {
         return this.inputs.allowedBots
@@ -30544,7 +30573,9 @@ class BaseFixer {
         this.paths = paths;
     }
     hasCustomCommand() {
-        return (this.config.command && Array.isArray(this.config.command) && this.config.command.length > 0);
+        return !!(this.config.command &&
+            Array.isArray(this.config.command) &&
+            this.config.command.length > 0);
     }
     getCustomCommand() {
         if (!this.hasCustomCommand()) {
