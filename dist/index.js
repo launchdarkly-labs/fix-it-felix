@@ -30119,8 +30119,12 @@ class FixitFelix {
         core.info(`🛠️ Running fixers: ${fixers.join(', ')}`);
         for (const fixerName of fixers) {
             if (!fixers_1.AVAILABLE_FIXERS.includes(fixerName)) {
-                core.warning(`⚠️ Unknown fixer: ${fixerName}`);
-                continue;
+                const fixerConfig = this.config.getFixerConfig(fixerName);
+                if (!fixerConfig.command || !Array.isArray(fixerConfig.command) || fixerConfig.command.length === 0) {
+                    core.warning(`⚠️ Unknown fixer: ${fixerName}`);
+                    continue;
+                }
+                core.info(`🔧 Using custom command for fixer: ${fixerName}`);
             }
             // Filter changed files for this fixer based on extensions and configured paths
             const fixerConfig = this.config.getFixerConfig(fixerName);
@@ -30664,6 +30668,39 @@ exports.BaseFixer = BaseFixer;
 
 /***/ }),
 
+/***/ 7138:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CustomFixer = void 0;
+const base_1 = __nccwpck_require__(9164);
+class CustomFixer extends base_1.BaseFixer {
+    constructor(name, config = {}, paths = ['.']) {
+        super(name, config, paths);
+    }
+    async isAvailable() {
+        // Custom fixers are always "available" since they rely on user-provided commands
+        return true;
+    }
+    getCommand() {
+        // Custom fixers must have a custom command
+        if (!this.hasCustomCommand()) {
+            throw new Error(`Custom fixer ${this.name} requires a command to be configured`);
+        }
+        return this.getCustomCommand();
+    }
+    getExtensions() {
+        // Default to common file extensions, but allow override via config
+        return this.config.extensions || ['.js', '.jsx', '.ts', '.tsx', '.json', '.md'];
+    }
+}
+exports.CustomFixer = CustomFixer;
+
+
+/***/ }),
+
 /***/ 4592:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -30767,6 +30804,8 @@ Object.defineProperty(exports, "BaseFixer", ({ enumerable: true, get: function (
 const eslint_1 = __nccwpck_require__(4592);
 const prettier_1 = __nccwpck_require__(7294);
 const markdownlint_1 = __nccwpck_require__(8294);
+const oxlint_1 = __nccwpck_require__(787);
+const custom_1 = __nccwpck_require__(7138);
 function createFixer(name, config = {}, paths = ['.'], configManager) {
     switch (name.toLowerCase()) {
         case 'eslint':
@@ -30775,11 +30814,17 @@ function createFixer(name, config = {}, paths = ['.'], configManager) {
             return new prettier_1.PrettierFixer(config, paths, configManager);
         case 'markdownlint':
             return new markdownlint_1.MarkdownLintFixer(config, paths);
+        case 'oxlint':
+            return new oxlint_1.OxlintFixer(config, paths);
         default:
+            // If not a built-in fixer but has a custom command, create a CustomFixer
+            if (config.command && Array.isArray(config.command) && config.command.length > 0) {
+                return new custom_1.CustomFixer(name, config, paths);
+            }
             return null;
     }
 }
-exports.AVAILABLE_FIXERS = ['eslint', 'prettier', 'markdownlint'];
+exports.AVAILABLE_FIXERS = ['eslint', 'prettier', 'markdownlint', 'oxlint'];
 
 
 /***/ }),
@@ -30879,6 +30924,119 @@ class MarkdownLintFixer extends base_1.BaseFixer {
     }
 }
 exports.MarkdownLintFixer = MarkdownLintFixer;
+
+
+/***/ }),
+
+/***/ 787:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.OxlintFixer = void 0;
+const fs = __importStar(__nccwpck_require__(9896));
+const exec = __importStar(__nccwpck_require__(5236));
+const base_1 = __nccwpck_require__(9164);
+class OxlintFixer extends base_1.BaseFixer {
+    constructor(config = {}, paths = ['.']) {
+        super('oxlint', config, paths);
+    }
+    async isAvailable() {
+        try {
+            // Check if oxlint is installed locally
+            if (fs.existsSync('node_modules/.bin/oxlint')) {
+                return true;
+            }
+            // Check if oxlint is globally available
+            await exec.exec('npx', ['oxlint', '--version'], { silent: true });
+            return true;
+        }
+        catch {
+            return false;
+        }
+    }
+    getCommand() {
+        // Use custom command if provided
+        if (this.hasCustomCommand()) {
+            return this.getCustomCommand();
+        }
+        const cmd = ['npx', 'oxlint'];
+        // Add config file if specified
+        if (this.config.configFile) {
+            cmd.push('--config', this.config.configFile);
+        }
+        // Add fix flag
+        cmd.push('--fix');
+        // Add rule configurations
+        if (this.config.allow && Array.isArray(this.config.allow)) {
+            this.config.allow.forEach((rule) => {
+                cmd.push('-A', rule);
+            });
+        }
+        if (this.config.warn && Array.isArray(this.config.warn)) {
+            this.config.warn.forEach((rule) => {
+                cmd.push('-W', rule);
+            });
+        }
+        if (this.config.deny && Array.isArray(this.config.deny)) {
+            this.config.deny.forEach((rule) => {
+                cmd.push('-D', rule);
+            });
+        }
+        // Add plugin flags
+        if (this.config.importPlugin) {
+            cmd.push('--import-plugin');
+        }
+        if (this.config.reactPlugin) {
+            cmd.push('--react-plugin');
+        }
+        // Add tsconfig if specified
+        if (this.config.tsconfig) {
+            cmd.push('--tsconfig', this.config.tsconfig);
+        }
+        // Add configured paths
+        cmd.push(...this.paths);
+        return cmd;
+    }
+    getExtensions() {
+        return this.config.extensions || ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx', '.vue', '.astro', '.svelte'];
+    }
+}
+exports.OxlintFixer = OxlintFixer;
 
 
 /***/ }),

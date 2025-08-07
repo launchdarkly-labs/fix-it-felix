@@ -47,7 +47,7 @@ describe('Fixer Factory', () => {
 
   describe('AVAILABLE_FIXERS', () => {
     it('should contain all supported fixers', () => {
-      expect(AVAILABLE_FIXERS).toEqual(['eslint', 'prettier', 'markdownlint'])
+      expect(AVAILABLE_FIXERS).toEqual(['eslint', 'prettier', 'markdownlint', 'oxlint'])
     })
   })
 })
