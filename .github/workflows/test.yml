@@ -141,7 +141,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.FELIX_PAT || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.FELIX_TOKEN || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
           ref: ${{ github.head_ref }}
 
@@ -154,12 +154,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Note: Using FELIX_PAT (Personal Access Token) if available, otherwise GITHUB_TOKEN
+      # Note: Use FELIX_TOKEN (with a GitHub personal access token) if available, otherwise fall back to GITHUB_TOKEN
       # GitHub's GITHUB_TOKEN won't trigger workflows on commits it creates (security feature)
-      # With PAT, Felix commits will trigger workflows so check-dist and other required jobs run
+      # With a PAT, Felix commits will trigger workflows so check-dist and other required jobs run
       - name: Fix formatting issues with Felix (real run)
         uses: ./
         with:
           commit_message: '🤖 Fix-it Felix: Auto-fix formatting issues'
         env:
-          GITHUB_TOKEN: ${{ secrets.FELIX_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.FELIX_TOKEN || secrets.GITHUB_TOKEN }}
