@@ -55,8 +55,12 @@ export class FixitFelix {
 
     for (const fixerName of fixers) {
       if (!AVAILABLE_FIXERS.includes(fixerName)) {
-        core.warning(`⚠️ Unknown fixer: ${fixerName}`)
-        continue
+        const fixerConfig = this.config.getFixerConfig(fixerName)
+        if (!fixerConfig.command || !Array.isArray(fixerConfig.command) || fixerConfig.command.length === 0) {
+          core.warning(`⚠️ Unknown fixer: ${fixerName}`)
+          continue
+        }
+        core.info(`🔧 Using custom command for fixer: ${fixerName}`)
       }
 
       // Filter changed files for this fixer based on extensions and configured paths
