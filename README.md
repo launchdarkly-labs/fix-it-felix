@@ -113,9 +113,9 @@ Control Felix through action inputs:
 - name: Run Fix-it Felix
   uses: launchdarkly-labs/fix-it-felix@v1
   with:
-    fixers: 'eslint,prettier'           # Which tools to run
-    paths: 'src,docs'                   # Which directories to process  
-    dry_run: false                      # Set to true to preview changes
+    fixers: 'eslint,prettier' # Which tools to run
+    paths: 'src,docs' # Which directories to process
+    dry_run: false # Set to true to preview changes
 ```
 
 ### Repository Configuration
@@ -145,11 +145,11 @@ Use your own npm scripts instead of built-in commands:
 {
   "eslint": {
     "command": ["npm", "run", "lint:fix"],
-    "appendPaths": true    // Append file paths for performance
+    "appendPaths": true // Append file paths for performance
   },
   "prettier": {
     "command": ["npm", "run", "format"],
-    "appendPaths": false   // Run script as-is
+    "appendPaths": false // Run script as-is
   }
 }
 ```
@@ -206,7 +206,7 @@ In dry-run mode, Felix will:
 
 See the [`examples/`](examples/) directory for workflow examples:
 
-- [Basic usage](examples/basic-usage.yml) - Simple setup  
+- [Basic usage](examples/basic-usage.yml) - Simple setup
 - [Advanced usage](examples/advanced-usage.yml) - Configuration with dry-run
 - [Configuration file](examples/.felixrc.json) - Example `.felixrc.json`
 

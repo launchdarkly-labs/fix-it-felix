@@ -81,9 +81,9 @@ export abstract class BaseFixer {
       if (!result.success) {
         const isCustomCommand = this.hasCustomCommand()
         const commandStr = command.join(' ')
-        
+
         result.error = `${this.name} exited with code ${exitCode}`
-        
+
         if (isCustomCommand) {
           core.error(`❌ Custom command failed: ${commandStr}`)
           core.error(`💡 Common fixes:`)
