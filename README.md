@@ -7,6 +7,7 @@
 ## ✨ Features
 
 - 🔧 **Multiple Fixers**: Support for ESLint, Prettier, and Markdownlint
+- 🎨 **Custom Commands**: Use your own npm scripts or custom commands
 - ⚙️ **Configurable**: Per-repository configuration via `.felixrc.json`
 - 🤖 **Auto-commit**: Automatically commits fixes to PR branches
 - 🛡️ **Safety First**: Built-in safeguards against infinite loops
@@ -81,21 +82,24 @@ jobs:
 
 ### ESLint
 
-- **Command**: `npx eslint --fix .`
+- **Default Command**: `npx eslint --fix .`
 - **Extensions**: `.js`, `.jsx`, `.ts`, `.tsx`, `.vue`
 - **Config**: Respects existing ESLint configuration
+- **Custom Commands**: Override with your own npm scripts or commands
 
 ### Prettier
 
-- **Command**: `npx prettier --write`
+- **Default Command**: `npx prettier --write`
 - **Extensions**: `.js`, `.jsx`, `.ts`, `.tsx`, `.json`, `.css`, `.scss`, `.md`, `.yml`, `.yaml`
 - **Config**: Respects existing Prettier configuration
+- **Custom Commands**: Override with your own npm scripts or commands
 
 ### Markdownlint
 
-- **Command**: `npx markdownlint-cli2 --fix`
+- **Default Command**: `npx markdownlint-cli2 --fix`
 - **Extensions**: `.md`, `.markdown`
 - **Config**: Respects existing Markdownlint configuration
+- **Custom Commands**: Override with your own npm scripts or commands
 
 ## ⚙️ Configuration
 
@@ -145,6 +149,88 @@ with:
 - `"src,docs"` - Both src and docs directories
 - `["docs", "README.md"]` - Specific directory and file
 
+### Custom Commands
+
+Felix supports using custom commands instead of the built-in tool commands. This is useful for:
+
+- Using your existing npm scripts with custom configurations
+- Running tools through build systems or custom wrappers
+- Using different versions or forks of linting tools
+
+**Basic Custom Command:**
+
+```json
+{
+  "eslint": {
+    "command": ["npm", "run", "lint:fix"]
+  },
+  "prettier": {
+    "command": ["npm", "run", "format"]
+  }
+}
+```
+
+**Path Handling:**
+
+By default, Felix appends file paths to custom commands for performance. You can control this behavior:
+
+```json
+{
+  "eslint": {
+    "command": ["npm", "run", "lint:fix"],
+    "appendPaths": true // Default: append paths like "src docs"
+  },
+  "prettier": {
+    "command": ["npm", "run", "format"],
+    "appendPaths": false // Don't append paths, run global command
+  }
+}
+```
+
+**Examples:**
+
+- `appendPaths: true` → `npm run format src docs` (faster, processes only specified files)
+- `appendPaths: false` → `npm run format` (runs your script as-is)
+
+**Usage with npm scripts that accept path arguments:**
+
+```json
+// package.json
+{
+  "scripts": {
+    "lint:fix": "eslint --fix",
+    "format": "prettier --write"
+  }
+}
+
+// .felixrc.json
+{
+  "eslint": {
+    "command": ["npm", "run", "lint:fix"],
+    "appendPaths": true  // Results in: npm run lint:fix src tests
+  }
+}
+```
+
+**Usage with npm scripts that define their own paths:**
+
+```json
+// package.json
+{
+  "scripts": {
+    "format:all": "prettier --write 'src/**/*.{js,ts}' 'docs/**/*.md'"
+  }
+}
+
+// .felixrc.json
+{
+  "prettier": {
+    "command": ["npm", "run", "format:all"],
+    "appendPaths": false  // Results in: npm run format:all
+  }
+}
+```
+
 ### Repository Configuration (`.felixrc.json`)
 
 Create a `.felixrc.json` file in your repository root for advanced configuration:
@@ -156,14 +242,19 @@ Create a `.felixrc.json` file in your repository root for advanced configuration
   "ignore": ["node_modules/**", "dist/**", "build/**", "coverage/**", "*.min.js"],
   "eslint": {
     "configFile": ".eslintrc.js",
-    "extensions": [".js", ".jsx", ".ts", ".tsx"]
+    "extensions": [".js", ".jsx", ".ts", ".tsx"],
+    "command": ["npm", "run", "lint:fix"],
+    "appendPaths": true
   },
   "prettier": {
     "configFile": ".prettierrc",
-    "extensions": [".js", ".jsx", ".ts", ".tsx", ".json", ".css", ".scss", ".md"]
+    "extensions": [".js", ".jsx", ".ts", ".tsx", ".json", ".css", ".scss", ".md"],
+    "command": ["npm", "run", "format"],
+    "appendPaths": false
   },
   "markdownlint": {
-    "configFile": ".markdownlint.json"
+    "configFile": ".markdownlint.json",
+    "command": ["npm", "run", "lint:markdown"]
   }
 }
 ```
@@ -265,7 +356,7 @@ npm run package
 ## 🎯 Roadmap
 
 - [ ] Support for more fixers (stylelint, gofmt, black, etc.)
-- [ ] Custom fixer support
+- [x] ~~Custom fixer support~~ ✅ **Completed** - Use custom commands
 - [ ] Monorepo support
 - [ ] Slack/Discord notifications
 - [ ] Performance optimizations
