@@ -30230,6 +30230,8 @@ class FixitFelix {
     }
     async commitChanges(changedFiles) {
         try {
+            // Ensure we're on the correct branch
+            await this.ensureCorrectBranch();
             // Stage the changed files
             await exec.exec('git', ['add', ...changedFiles]);
             // Check if there are actually staged changes
@@ -30249,8 +30251,16 @@ class FixitFelix {
             await this.configureGitUser();
             // Create commit
             await exec.exec('git', ['commit', '-m', this.inputs.commitMessage]);
-            // Push changes
-            await exec.exec('git', ['push']);
+            // Push changes with explicit branch
+            const pr = this.context.payload.pull_request;
+            const branchName = pr?.head?.ref;
+            if (branchName) {
+                await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`]);
+            }
+            else {
+                // Fallback to regular push if we can't determine branch name
+                await exec.exec('git', ['push']);
+            }
             core.info(`🚀 Committed and pushed fixes for ${changedFiles.length} files`);
         }
         catch (error) {
@@ -30264,6 +30274,40 @@ class FixitFelix {
         }
         catch (error) {
             core.warning(`Could not configure git user: ${error}`);
+        }
+    }
+    async isDetachedHead() {
+        try {
+            let output = '';
+            await exec.exec('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+                listeners: {
+                    stdout: (data) => {
+                        output += data.toString();
+                    }
+                }
+            });
+            return output.trim() === 'HEAD';
+        }
+        catch {
+            return true; // Assume detached if command fails
+        }
+    }
+    async ensureCorrectBranch() {
+        const pr = this.context.payload.pull_request;
+        const branchName = pr?.head?.ref;
+        if (!branchName) {
+            throw new Error('Could not determine PR branch name');
+        }
+        if (await this.isDetachedHead()) {
+            core.info(`🔧 Detected detached HEAD, checking out branch: ${branchName}`);
+            try {
+                // Try to checkout the existing branch
+                await exec.exec('git', ['checkout', branchName]);
+            }
+            catch {
+                // If that fails, create a new branch from current HEAD
+                await exec.exec('git', ['checkout', '-b', branchName]);
+            }
         }
     }
     async commentOnPR(result) {

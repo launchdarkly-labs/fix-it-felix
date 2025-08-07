@@ -194,6 +194,9 @@ export class FixitFelix {
 
   private async commitChanges(changedFiles: string[]): Promise<void> {
     try {
+      // Ensure we're on the correct branch
+      await this.ensureCorrectBranch()
+
       // Stage the changed files
       await exec.exec('git', ['add', ...changedFiles])
 
@@ -218,8 +221,15 @@ export class FixitFelix {
       // Create commit
       await exec.exec('git', ['commit', '-m', this.inputs.commitMessage])
 
-      // Push changes
-      await exec.exec('git', ['push'])
+      // Push changes with explicit branch
+      const pr = this.context.payload.pull_request
+      const branchName = pr?.head?.ref
+      if (branchName) {
+        await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`])
+      } else {
+        // Fallback to regular push if we can't determine branch name
+        await exec.exec('git', ['push'])
+      }
 
       core.info(`🚀 Committed and pushed fixes for ${changedFiles.length} files`)
     } catch (error) {
@@ -233,6 +243,42 @@ export class FixitFelix {
       await exec.exec('git', ['config', 'user.email', 'noreply@github.com'])
     } catch (error) {
       core.warning(`Could not configure git user: ${error}`)
+    }
+  }
+
+  private async isDetachedHead(): Promise<boolean> {
+    try {
+      let output = ''
+      await exec.exec('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+        listeners: {
+          stdout: (data: Buffer) => {
+            output += data.toString()
+          }
+        }
+      })
+      return output.trim() === 'HEAD'
+    } catch {
+      return true // Assume detached if command fails
+    }
+  }
+
+  private async ensureCorrectBranch(): Promise<void> {
+    const pr = this.context.payload.pull_request
+    const branchName = pr?.head?.ref
+    
+    if (!branchName) {
+      throw new Error('Could not determine PR branch name')
+    }
+    
+    if (await this.isDetachedHead()) {
+      core.info(`🔧 Detected detached HEAD, checking out branch: ${branchName}`)
+      try {
+        // Try to checkout the existing branch
+        await exec.exec('git', ['checkout', branchName])
+      } catch {
+        // If that fails, create a new branch from current HEAD
+        await exec.exec('git', ['checkout', '-b', branchName])
+      }
     }
   }
 
