@@ -1,14 +1,17 @@
 {
-  "fixers": ["eslint", "prettier"],
+  "fixers": [
+    {
+      "name": "eslint",
+      "command": ["npm", "run", "lint:fix"],
+      "appendPaths": false
+    },
+    {
+      "name": "prettier",
+      "command": ["npm", "run", "format:fix"],
+      "appendPaths": false
+    }
+  ],
   "paths": ["src", "examples", "tests", "*.md", "jest.config.js", "test-felix.js"],
   "ignore": ["node_modules/**", "dist/**", "build/**", ".git/**", "coverage/**", "test-files/**", "package.json", "package-lock.json", ".github/**"],
-  "_comment": "Using custom commands to demonstrate the feature. In production, ensure 'npm ci' runs before Felix.",
-  "eslint": {
-    "command": ["npm", "run", "lint:fix"],
-    "appendPaths": false
-  },
-  "prettier": {
-    "command": ["npm", "run", "format:fix"],
-    "appendPaths": false
-  }
+  "_comment": "Using custom commands to demonstrate the new inline configuration format. In production, ensure 'npm ci' runs before Felix."
 }

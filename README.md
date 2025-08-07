@@ -124,16 +124,19 @@ For advanced settings, create a `.felixrc.json` file:
 
 ```json
 {
-  "fixers": ["eslint", "prettier"],
+  "fixers": [
+    {
+      "name": "eslint",
+      "configFile": ".eslintrc.js",
+      "extensions": [".js", ".jsx", ".ts", ".tsx"]
+    },
+    {
+      "name": "prettier",
+      "extensions": [".js", ".jsx", ".ts", ".tsx", ".json", ".md"]
+    }
+  ],
   "paths": ["src", "docs"],
-  "ignore": ["node_modules/**", "dist/**"],
-  "eslint": {
-    "configFile": ".eslintrc.js",
-    "extensions": [".js", ".jsx", ".ts", ".tsx"]
-  },
-  "prettier": {
-    "extensions": [".js", ".jsx", ".ts", ".tsx", ".json", ".md"]
-  }
+  "ignore": ["node_modules/**", "dist/**"]
 }
 ```
 
@@ -143,14 +146,18 @@ Use your own npm scripts instead of built-in commands:
 
 ```json
 {
-  "eslint": {
-    "command": ["npm", "run", "lint:fix"],
-    "appendPaths": true // Append file paths for performance
-  },
-  "prettier": {
-    "command": ["npm", "run", "format"],
-    "appendPaths": false // Run script as-is
-  }
+  "fixers": [
+    {
+      "name": "eslint",
+      "command": ["npm", "run", "lint:fix"],
+      "appendPaths": true
+    },
+    {
+      "name": "prettier",
+      "command": ["npm", "run", "format"],
+      "appendPaths": false
+    }
+  ]
 }
 ```
 

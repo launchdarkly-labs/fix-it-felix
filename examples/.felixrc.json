@@ -1,34 +1,50 @@
 {
-  "fixers": ["eslint", "prettier", "markdownlint"],
+  "fixers": [
+    {
+      "name": "eslint",
+      "configFile": ".eslintrc.js",
+      "extensions": [".js", ".jsx", ".ts", ".tsx"],
+      "paths": ["src", "scripts"]
+    },
+    {
+      "name": "prettier",
+      "configFile": ".prettierrc",
+      "extensions": [".js", ".jsx", ".ts", ".tsx", ".json", ".css", ".scss", ".md"],
+      "paths": ["src", "docs", "examples"]
+    },
+    {
+      "name": "markdownlint",
+      "configFile": ".markdownlint.json",
+      "paths": ["docs", "README.md"]
+    }
+  ],
   "paths": ["src", "docs"],
   "ignore": ["node_modules/**", "dist/**", "build/**", "coverage/**", "*.min.js"],
-  "eslint": {
-    "configFile": ".eslintrc.js",
-    "extensions": [".js", ".jsx", ".ts", ".tsx"],
-    "paths": ["src", "scripts"]
-  },
-  "prettier": {
-    "configFile": ".prettierrc",
-    "extensions": [".js", ".jsx", ".ts", ".tsx", ".json", ".css", ".scss", ".md"],
-    "paths": ["src", "docs", "examples"]
-  },
-  "markdownlint": {
-    "configFile": ".markdownlint.json",
-    "paths": ["docs", "README.md"]
-  },
   "_examples": {
-    "_comment": "Examples of using custom commands instead of built-in fixer commands",
+    "_comment": "Examples of using custom commands with the new inline format",
     "eslint_with_npm_script": {
+      "name": "eslint",
       "command": ["npm", "run", "lint:fix"],
       "appendPaths": true
     },
     "prettier_global_script": {
+      "name": "prettier", 
       "command": ["npm", "run", "format"],
       "appendPaths": false
     },
     "markdownlint_with_args": {
+      "name": "markdownlint",
       "command": ["npm", "run", "lint:markdown", "--"],
       "appendPaths": true
-    }
+    },
+    "mixed_simple_and_complex": [
+      "eslint",
+      {
+        "name": "prettier",
+        "command": ["yarn", "format"],
+        "appendPaths": false
+      },
+      "markdownlint"
+    ]
   }
 }
