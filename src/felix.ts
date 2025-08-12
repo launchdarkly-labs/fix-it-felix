@@ -169,7 +169,11 @@ export class FixitFelix {
         lastAuthor.toLowerCase().includes(indicator)
       )
 
-      if (isLastCommitByFelix) {
+      // Also check for generic bot pattern, but only if not an allowed bot
+      const isGenericBot = lastAuthor.toLowerCase().includes('[bot]')
+      const isUnknownBot = isGenericBot && !isAllowedBot
+
+      if (isLastCommitByFelix || isUnknownBot) {
         core.info(`Last commit was by: ${lastAuthor} - potential infinite loop`)
         return true
       }
