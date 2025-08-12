@@ -163,13 +163,17 @@ export class FixitFelix {
         return false
       }
 
-      // Check if the last commit was made by Felix or other bots
-      const felixIndicators = ['fix-it-felix', 'felix', 'github-actions', 'bot']
+      // Check if the last commit was made by Felix or other specific bots
+      const felixIndicators = ['fix-it-felix', 'felix', 'github-actions[bot]']
       const isLastCommitByFelix = felixIndicators.some(indicator =>
         lastAuthor.toLowerCase().includes(indicator)
       )
 
-      if (isLastCommitByFelix) {
+      // Also check for generic bot pattern, but only if not an allowed bot
+      const isGenericBot = lastAuthor.toLowerCase().includes('[bot]')
+      const isUnknownBot = isGenericBot && !isAllowedBot
+
+      if (isLastCommitByFelix || isUnknownBot) {
         core.info(`Last commit was by: ${lastAuthor} - potential infinite loop`)
         return true
       }
