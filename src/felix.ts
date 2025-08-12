@@ -163,8 +163,8 @@ export class FixitFelix {
         return false
       }
 
-      // Check if the last commit was made by Felix or other bots
-      const felixIndicators = ['fix-it-felix', 'felix', 'github-actions', 'bot']
+      // Check if the last commit was made by Felix or other specific bots
+      const felixIndicators = ['fix-it-felix', 'felix', 'github-actions[bot]']
       const isLastCommitByFelix = felixIndicators.some(indicator =>
         lastAuthor.toLowerCase().includes(indicator)
       )

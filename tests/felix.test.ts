@@ -231,7 +231,8 @@ describe('FixitFelix', () => {
       { input: 'renovate', author: 'renovate[bot]', shouldProceed: true },
       { input: 'dependabot,renovate', author: 'renovate[bot]', shouldProceed: true },
       { input: 'dependabot', author: 'other-bot[bot]', shouldProceed: false },
-      { input: '', author: 'dependabot[bot]', shouldProceed: false }
+      { input: '', author: 'dependabot[bot]', shouldProceed: false },
+      { input: 'devin-ai-integration', author: 'devin-ai-integration[bot]', shouldProceed: true }
     ]
 
     testCases.forEach(({ input, author, shouldProceed }) => {
