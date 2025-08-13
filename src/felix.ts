@@ -1,8 +1,8 @@
-import * as core from '@actions/core';
-import * as github from '@actions/github';
-import * as exec from '@actions/exec';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as core from '@actions/core'
+import * as github from '@actions/github'
+import * as exec from '@actions/exec'
+import * as fs from 'fs'
+import * as path from 'path'
 import { Context } from '@actions/github/lib/context'
 import { ConfigManager } from './config'
 import { createFixer, AVAILABLE_FIXERS } from './fixers'
@@ -59,7 +59,11 @@ export class FixitFelix {
     for (const fixerName of fixers) {
       if (!AVAILABLE_FIXERS.includes(fixerName)) {
         const fixerConfig = this.config.getFixerConfig(fixerName)
-        if (!fixerConfig.command || !Array.isArray(fixerConfig.command) || fixerConfig.command.length === 0) {
+        if (
+          !fixerConfig.command ||
+          !Array.isArray(fixerConfig.command) ||
+          fixerConfig.command.length === 0
+        ) {
           core.warning(`⚠️ Unknown fixer: ${fixerName}`)
           continue
         }
@@ -207,7 +211,7 @@ export class FixitFelix {
     try {
       // Configure git authentication if using PAT
       await this.configureGitAuth()
-      
+
       // Ensure we're on the correct branch
       await this.ensureCorrectBranch()
 
@@ -269,7 +273,7 @@ export class FixitFelix {
 
   private async configureGitAuth(): Promise<void> {
     const patToken = core.getInput('personal_access_token')
-    
+
     if (patToken) {
       try {
         // Configure git to use PAT for authentication
@@ -314,26 +318,25 @@ export class FixitFelix {
   private async ensureCorrectBranch(): Promise<void> {
     const pr = this.context.payload.pull_request
     const branchName = pr?.head?.ref
-    
+
     if (!branchName) {
       throw new Error('Could not determine PR branch name')
     }
-    
+
     if (await this.isDetachedHead()) {
       core.info(`🔧 Detected detached HEAD, checking out branch: ${branchName}`)
-      
+
       // First, try to fetch the remote branch to check if it exists
       try {
         await exec.exec('git', ['fetch', 'origin', branchName])
         core.info(`📥 Fetched remote branch: ${branchName}`)
-        
+
         // If fetch succeeds, checkout the branch (which will track remote automatically)
         await exec.exec('git', ['checkout', branchName])
         core.info(`✅ Successfully checked out remote branch: ${branchName}`)
-        
       } catch (fetchError) {
         core.info(`Remote branch ${branchName} doesn't exist, creating locally`)
-        
+
         try {
           // Remote branch doesn't exist, try to checkout local branch
           await exec.exec('git', ['checkout', branchName])
@@ -521,7 +524,7 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
 
     const filteredFiles = files.filter(file => {
       const ext = path.extname(file).toLowerCase()
-      
+
       if (!extensions.includes(ext)) {
         return false
       }
@@ -538,7 +541,7 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
         return minimatch(file, configPath)
       })
     })
-    
+
     return filteredFiles
   }
 }
