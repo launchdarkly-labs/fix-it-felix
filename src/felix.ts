@@ -1,8 +1,8 @@
-import * as core from '@actions/core';
-import * as github from '@actions/github';
-import * as exec from '@actions/exec';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as core from '@actions/core'
+import * as github from '@actions/github'
+import * as exec from '@actions/exec'
+import * as fs from 'fs'
+import * as path from 'path'
 import { Context } from '@actions/github/lib/context'
 import { ConfigManager } from './config'
 import { createFixer, AVAILABLE_FIXERS } from './fixers'

@@ -77,12 +77,12 @@ export abstract class BaseFixer {
 
       result.output = output
       result.changedFiles = await this.getChangedFiles()
-      
+
       // Consider the fixer successful if it ran (even if it found unfixable issues)
       // Only mark as failed if it genuinely crashed or couldn't run
       const didRun = exitCode !== 127 && exitCode !== 126 // 127 = command not found, 126 = not executable
       const madeChanges = result.changedFiles.length > 0
-      
+
       // Success if the tool ran successfully, or if it ran and made changes (even with warnings/unfixable errors)
       result.success = exitCode === 0 || (didRun && madeChanges)
 
@@ -104,9 +104,13 @@ export abstract class BaseFixer {
             core.error(`❌ ${this.name} failed with exit code ${exitCode}`)
           }
         } else if (madeChanges) {
-          core.info(`✨ ${this.name} fixed ${result.changedFiles.length} files (exit code ${exitCode} with unfixable issues)`)
+          core.info(
+            `✨ ${this.name} fixed ${result.changedFiles.length} files (exit code ${exitCode} with unfixable issues)`
+          )
         } else {
-          core.info(`✨ ${this.name} ran successfully but found unfixable issues (exit code ${exitCode})`)
+          core.info(
+            `✨ ${this.name} ran successfully but found unfixable issues (exit code ${exitCode})`
+          )
         }
         // Note: Don't call core.setFailed() here as it would prevent other fixers from running
       }
