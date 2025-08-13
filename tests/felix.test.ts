@@ -349,7 +349,10 @@ describe('FixitFelix', () => {
         pull_request: {
           number: 123,
           head: { ref: 'feature-branch', repo: { full_name: 'owner/repo' } },
-          base: { ref: 'main', repo: { owner: { login: 'owner' }, name: 'repo', full_name: 'owner/repo' } }
+          base: {
+            ref: 'main',
+            repo: { owner: { login: 'owner' }, name: 'repo', full_name: 'owner/repo' }
+          }
         }
       },
       repo: { owner: 'owner', repo: 'repo' }
@@ -403,7 +406,7 @@ describe('FixitFelix', () => {
       // Should have applied fixes from prettier
       expect(result.fixesApplied).toBe(true)
       expect(result.changedFiles).toContain('src/test.js')
-      
+
       // Should not be marked as overall failure even though eslint "failed"
       expect(result.hasFailures).toBe(false)
     })
@@ -429,7 +432,7 @@ describe('FixitFelix', () => {
           return Promise.resolve(1)
         } else if (command === 'npm' && args && args.includes('format:fix')) {
           prettierCalled = true
-          // Prettier command fails  
+          // Prettier command fails
           return Promise.resolve(1)
         } else if (args && args.includes('--name-only')) {
           // No changes from either fixer
@@ -453,11 +456,10 @@ describe('FixitFelix', () => {
       const felix = new FixitFelix(inputsWithMultipleFixers, mockContext)
       const result = await felix.run()
 
-
       // Should not have applied any fixes
       expect(result.fixesApplied).toBe(false)
       expect(result.changedFiles).toEqual([])
-      
+
       // Should not be marked as failure since no fixers actually ran (they were skipped due to file filtering)
       expect(result.hasFailures).toBe(false)
     })
