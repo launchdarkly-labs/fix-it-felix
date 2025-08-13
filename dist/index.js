@@ -30161,6 +30161,11 @@ class FixitFelix {
         }
         // Remove duplicates from changed files
         result.changedFiles = [...new Set(result.changedFiles)];
+        // Don't consider it a failure if we successfully applied any fixes
+        // Even if some fixers had unfixable errors, overall success if any fixes were made
+        if (result.fixesApplied) {
+            result.hasFailures = false;
+        }
         // Commit changes if any and not in dry-run mode
         if (result.fixesApplied && !this.inputs.dryRun) {
             await this.commitChanges(result.changedFiles);

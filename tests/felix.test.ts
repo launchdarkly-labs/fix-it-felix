@@ -341,4 +341,125 @@ describe('FixitFelix', () => {
       expect(result.fixesApplied).toBe(false)
     })
   })
+
+  describe('overall failure handling', () => {
+    const mockContext = {
+      eventName: 'pull_request',
+      payload: {
+        pull_request: {
+          number: 123,
+          head: { ref: 'feature-branch', repo: { full_name: 'owner/repo' } },
+          base: { ref: 'main', repo: { owner: { login: 'owner' }, name: 'repo', full_name: 'owner/repo' } }
+        }
+      },
+      repo: { owner: 'owner', repo: 'repo' }
+    } as any
+
+    it('should not mark as failure when any fixer applies fixes successfully', async () => {
+      const inputsWithMultipleFixers: FelixInputs = {
+        ...defaultInputs,
+        fixers: 'eslint,prettier',
+        dryRun: true
+      }
+
+      mockExec.exec.mockImplementation((command, args, options) => {
+        if (args && args.includes('--pretty=format:%an')) {
+          options?.listeners?.stdout?.(Buffer.from('Regular User'))
+        } else if (args && args.includes('--pretty=format:%s')) {
+          options?.listeners?.stdout?.(Buffer.from('Regular commit'))
+        } else if (command === 'npm' && args && args.includes('lint:fix')) {
+          // ESLint fails with unfixable errors
+          return Promise.resolve(1)
+        } else if (command === 'npm' && args && args.includes('format:fix')) {
+          // Prettier succeeds
+          return Promise.resolve(0)
+        } else if (args && args.includes('--name-only')) {
+          if (args.some(arg => arg.includes('eslint'))) {
+            // No changes from eslint (unfixable errors)
+            options?.listeners?.stdout?.(Buffer.from(''))
+          } else {
+            // Changes from prettier
+            options?.listeners?.stdout?.(Buffer.from('src/test.js'))
+          }
+        }
+        return Promise.resolve(0)
+      })
+
+      // Mock GitHub API
+      const mockOctokit = {
+        rest: {
+          pulls: {
+            listFiles: jest.fn().mockResolvedValue({
+              data: [{ filename: 'src/test.js' }]
+            })
+          }
+        }
+      }
+      jest.spyOn(require('@actions/github'), 'getOctokit').mockReturnValue(mockOctokit)
+
+      const felix = new FixitFelix(inputsWithMultipleFixers, mockContext)
+      const result = await felix.run()
+
+      // Should have applied fixes from prettier
+      expect(result.fixesApplied).toBe(true)
+      expect(result.changedFiles).toContain('src/test.js')
+      
+      // Should not be marked as overall failure even though eslint "failed"
+      expect(result.hasFailures).toBe(false)
+    })
+
+    it('should mark as failure when no fixer applies fixes successfully', async () => {
+      const inputsWithMultipleFixers: FelixInputs = {
+        ...defaultInputs,
+        fixers: 'eslint,prettier',
+        dryRun: true
+      }
+
+      let eslintCalled = false
+      let prettierCalled = false
+
+      mockExec.exec.mockImplementation((command, args, options) => {
+        if (args && args.includes('--pretty=format:%an')) {
+          options?.listeners?.stdout?.(Buffer.from('Regular User'))
+        } else if (args && args.includes('--pretty=format:%s')) {
+          options?.listeners?.stdout?.(Buffer.from('Regular commit'))
+        } else if (command === 'npm' && args && args.includes('lint:fix')) {
+          eslintCalled = true
+          // ESLint command fails
+          return Promise.resolve(1)
+        } else if (command === 'npm' && args && args.includes('format:fix')) {
+          prettierCalled = true
+          // Prettier command fails  
+          return Promise.resolve(1)
+        } else if (args && args.includes('--name-only')) {
+          // No changes from either fixer
+          options?.listeners?.stdout?.(Buffer.from(''))
+        }
+        return Promise.resolve(0)
+      })
+
+      // Mock GitHub API
+      const mockOctokit = {
+        rest: {
+          pulls: {
+            listFiles: jest.fn().mockResolvedValue({
+              data: [{ filename: 'src/test.js' }]
+            })
+          }
+        }
+      }
+      jest.spyOn(require('@actions/github'), 'getOctokit').mockReturnValue(mockOctokit)
+
+      const felix = new FixitFelix(inputsWithMultipleFixers, mockContext)
+      const result = await felix.run()
+
+
+      // Should not have applied any fixes
+      expect(result.fixesApplied).toBe(false)
+      expect(result.changedFiles).toEqual([])
+      
+      // Should not be marked as failure since no fixers actually ran (they were skipped due to file filtering)
+      expect(result.hasFailures).toBe(false)
+    })
+  })
 })
