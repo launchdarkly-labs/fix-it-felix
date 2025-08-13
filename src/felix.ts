@@ -13,11 +13,14 @@ export class FixitFelix {
   private inputs: FelixInputs
   private context: Context
   private config: ConfigManager
+  private token: string
 
   constructor(inputs: FelixInputs, context: Context) {
     this.inputs = inputs
     this.context = context
     this.config = new ConfigManager(inputs)
+    // Use PAT if provided, otherwise fallback to GITHUB_TOKEN
+    this.token = core.getInput('personal_access_token') || process.env.GITHUB_TOKEN || ''
   }
 
   async run(): Promise<FelixResult> {
@@ -202,6 +205,9 @@ export class FixitFelix {
 
   private async commitChanges(changedFiles: string[]): Promise<void> {
     try {
+      // Configure git authentication if using PAT
+      await this.configureGitAuth()
+      
       // Ensure we're on the correct branch
       await this.ensureCorrectBranch()
 
@@ -258,6 +264,24 @@ export class FixitFelix {
       core.info(`🚀 Committed and pushed fixes for ${changedFiles.length} files`)
     } catch (error) {
       throw new Error(`Failed to commit changes: ${error}`)
+    }
+  }
+
+  private async configureGitAuth(): Promise<void> {
+    const patToken = core.getInput('personal_access_token')
+    
+    if (patToken) {
+      try {
+        // Configure git to use PAT for authentication
+        const pr = this.context.payload.pull_request
+        if (pr) {
+          const remoteUrl = `https://x-access-token:${patToken}@github.com/${pr.base.repo.owner.login}/${pr.base.repo.name}.git`
+          await exec.exec('git', ['remote', 'set-url', 'origin', remoteUrl])
+          core.info('🔑 Configured git to use Personal Access Token')
+        }
+      } catch (error) {
+        core.warning(`Could not configure git authentication: ${error}`)
+      }
     }
   }
 
@@ -331,13 +355,13 @@ export class FixitFelix {
   }
 
   private async commentOnPR(result: FelixResult): Promise<void> {
-    if (!process.env.GITHUB_TOKEN) {
-      core.warning('No GITHUB_TOKEN available - cannot comment on PR')
+    if (!this.token) {
+      core.warning('No token available - cannot comment on PR')
       return
     }
 
     try {
-      const octokit = github.getOctokit(process.env.GITHUB_TOKEN)
+      const octokit = github.getOctokit(this.token)
       const pr = this.context.payload.pull_request
 
       if (!pr) {
@@ -383,11 +407,11 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
 
     // Try GitHub API first
     try {
-      if (!process.env.GITHUB_TOKEN) {
-        throw new Error('No GITHUB_TOKEN available')
+      if (!this.token) {
+        throw new Error('No token available')
       }
 
-      const octokit = github.getOctokit(process.env.GITHUB_TOKEN)
+      const octokit = github.getOctokit(this.token)
       const files = await octokit.rest.pulls.listFiles({
         owner: pr.base.repo.owner.login,
         repo: pr.base.repo.name,

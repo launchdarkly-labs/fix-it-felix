@@ -40,6 +40,10 @@ inputs:
     description: 'Comma-separated list of paths to run fixers on (e.g., src,docs)'
     required: false
 
+  personal_access_token:
+    description: 'Personal Access Token (PAT) with workflow scope to trigger workflows on Felix commits'
+    required: false
+
 outputs:
   fixes_applied:
     description: 'Whether any fixes were applied'
