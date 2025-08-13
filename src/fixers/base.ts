@@ -76,28 +76,40 @@ export abstract class BaseFixer {
       const exitCode = await exec.exec(command[0], command.slice(1), options)
 
       result.output = output
-      result.success = exitCode === 0
+      result.changedFiles = await this.getChangedFiles()
+      
+      // Consider the fixer successful if it ran (even if it found unfixable issues)
+      // Only mark as failed if it genuinely crashed or couldn't run
+      const didRun = exitCode !== 127 && exitCode !== 126 // 127 = command not found, 126 = not executable
+      const madeChanges = result.changedFiles.length > 0
+      
+      // Success if the tool ran successfully, or if it ran and made changes (even with warnings/unfixable errors)
+      result.success = exitCode === 0 || (didRun && madeChanges)
 
-      if (!result.success) {
+      if (exitCode !== 0) {
         const isCustomCommand = this.hasCustomCommand()
         const commandStr = command.join(' ')
 
-        result.error = `${this.name} exited with code ${exitCode}`
+        if (!result.success) {
+          result.error = `${this.name} exited with code ${exitCode}`
 
-        if (isCustomCommand) {
-          core.error(`❌ Custom command failed: ${commandStr}`)
-          core.error(`💡 Common fixes:`)
-          core.error(`   • Ensure dependencies are installed (add 'npm ci' step before Felix)`)
-          core.error(`   • Verify the command works locally: ${commandStr}`)
-          core.error(`   • Check that npm scripts exist in package.json`)
-          core.error(`   • Consider using built-in commands instead of custom ones`)
+          if (isCustomCommand) {
+            core.error(`❌ Custom command failed: ${commandStr}`)
+            core.error(`💡 Common fixes:`)
+            core.error(`   • Ensure dependencies are installed (add 'npm ci' step before Felix)`)
+            core.error(`   • Verify the command works locally: ${commandStr}`)
+            core.error(`   • Check that npm scripts exist in package.json`)
+            core.error(`   • Consider using built-in commands instead of custom ones`)
+          } else {
+            core.error(`❌ ${this.name} failed with exit code ${exitCode}`)
+          }
+        } else if (madeChanges) {
+          core.info(`✨ ${this.name} fixed ${result.changedFiles.length} files (exit code ${exitCode} with unfixable issues)`)
         } else {
-          core.error(`❌ ${this.name} failed with exit code ${exitCode}`)
+          core.info(`✨ ${this.name} ran successfully but found unfixable issues (exit code ${exitCode})`)
         }
         // Note: Don't call core.setFailed() here as it would prevent other fixers from running
       }
-
-      result.changedFiles = await this.getChangedFiles()
     } catch (error) {
       result.error = error instanceof Error ? error.message : String(error)
     }
