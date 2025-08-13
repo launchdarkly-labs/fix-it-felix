@@ -11,7 +11,8 @@ async function run(): Promise<void> {
       dryRun: core.getBooleanInput('dry_run'),
       skipLabel: core.getInput('skip_label'),
       allowedBots: core.getInput('allowed_bots'),
-      paths: core.getInput('paths')
+      paths: core.getInput('paths'),
+      personalAccessToken: core.getInput('personal_access_token')
     }
 
     const felix = new FixitFelix(inputs, github.context)

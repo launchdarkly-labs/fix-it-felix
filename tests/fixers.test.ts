@@ -345,3 +345,114 @@ describe('MarkdownLintFixer', () => {
     })
   })
 })
+
+describe('BaseFixer Error Handling', () => {
+  let mockExec: jest.SpyInstance
+
+  beforeEach(() => {
+    mockExec = jest.spyOn(require('@actions/exec'), 'exec')
+  })
+
+  afterEach(() => {
+    mockExec.mockRestore()
+  })
+
+  it('should mark as successful when exit code is 0', async () => {
+    mockExec.mockResolvedValueOnce(0) // Command succeeds
+    mockExec.mockImplementation((command, args, options) => {
+      if (command === 'git' && args[0] === 'diff') {
+        // Mock git diff to show no changes
+        options.listeners.stdout(Buffer.from(''))
+        return Promise.resolve(0)
+      }
+      return Promise.resolve(0)
+    })
+
+    const fixer = new PrettierFixer({}, ['.'])
+    jest.spyOn(fixer, 'isAvailable').mockResolvedValue(true)
+
+    const result = await fixer.run()
+
+    expect(result.success).toBe(true)
+    expect(result.error).toBeUndefined()
+  })
+
+  it('should mark as successful when exit code is non-zero but files were changed', async () => {
+    mockExec.mockResolvedValueOnce(1) // Command exits with error
+    mockExec.mockImplementation((command, args, options) => {
+      if (command === 'git' && args[0] === 'diff') {
+        // Mock git diff to show changes were made
+        options.listeners.stdout(Buffer.from('src/test.ts\nother/file.js'))
+        return Promise.resolve(0)
+      }
+      return Promise.resolve(1)
+    })
+
+    const fixer = new PrettierFixer({}, ['.'])
+    jest.spyOn(fixer, 'isAvailable').mockResolvedValue(true)
+
+    const result = await fixer.run()
+
+    expect(result.success).toBe(true)
+    expect(result.changedFiles).toEqual(['src/test.ts', 'other/file.js'])
+  })
+
+  it('should mark as failed when exit code is non-zero and no files were changed', async () => {
+    mockExec.mockResolvedValueOnce(1) // Command exits with error
+    mockExec.mockImplementation((command, args, options) => {
+      if (command === 'git' && args[0] === 'diff') {
+        // Mock git diff to show no changes
+        options.listeners.stdout(Buffer.from(''))
+        return Promise.resolve(0)
+      }
+      return Promise.resolve(1)
+    })
+
+    const fixer = new PrettierFixer({}, ['.'])
+    jest.spyOn(fixer, 'isAvailable').mockResolvedValue(true)
+
+    const result = await fixer.run()
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('exited with code 1')
+    expect(result.changedFiles).toEqual([])
+  })
+
+  it('should mark as failed when command not found (exit code 127)', async () => {
+    mockExec.mockResolvedValueOnce(127) // Command not found
+    mockExec.mockImplementation((command, args, options) => {
+      if (command === 'git' && args[0] === 'diff') {
+        options.listeners.stdout(Buffer.from(''))
+        return Promise.resolve(0)
+      }
+      return Promise.resolve(127)
+    })
+
+    const fixer = new PrettierFixer({}, ['.'])
+    jest.spyOn(fixer, 'isAvailable').mockResolvedValue(true)
+
+    const result = await fixer.run()
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('exited with code 127')
+  })
+
+  it('should mark as failed when command not executable (exit code 126)', async () => {
+    mockExec.mockResolvedValueOnce(126) // Command not executable
+    mockExec.mockImplementation((command, args, options) => {
+      if (command === 'git' && args[0] === 'diff') {
+        options.listeners.stdout(Buffer.from(''))
+        return Promise.resolve(0)
+      }
+      return Promise.resolve(126)
+    })
+
+    const fixer = new PrettierFixer({}, ['.'])
+    jest.spyOn(fixer, 'isAvailable').mockResolvedValue(true)
+
+    const result = await fixer.run()
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('exited with code 126')
+  })
+})
