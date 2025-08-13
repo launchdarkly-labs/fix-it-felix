@@ -1,0 +1,14 @@
+name: Test PAT Bot Behavior
+on:
+  push:
+    branches: [test-pat-bot-behavior]
+  pull_request:
+    branches: [test-pat-bot-behavior]
+
+jobs:
+  test-trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Workflow Triggered
+        run: echo "This workflow was triggered successfully!"
