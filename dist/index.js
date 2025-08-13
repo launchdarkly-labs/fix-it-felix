@@ -30089,6 +30089,8 @@ class FixitFelix {
         this.inputs = inputs;
         this.context = context;
         this.config = new config_1.ConfigManager(inputs);
+        // Use PAT if provided, otherwise fallback to GITHUB_TOKEN
+        this.token = core.getInput('personal_access_token') || process.env.GITHUB_TOKEN || '';
     }
     async run() {
         const result = {
@@ -30237,6 +30239,8 @@ class FixitFelix {
     }
     async commitChanges(changedFiles) {
         try {
+            // Configure git authentication if using PAT
+            await this.configureGitAuth();
             // Ensure we're on the correct branch
             await this.ensureCorrectBranch();
             // Stage the changed files
@@ -30290,6 +30294,23 @@ class FixitFelix {
         }
         catch (error) {
             throw new Error(`Failed to commit changes: ${error}`);
+        }
+    }
+    async configureGitAuth() {
+        const patToken = core.getInput('personal_access_token');
+        if (patToken) {
+            try {
+                // Configure git to use PAT for authentication
+                const pr = this.context.payload.pull_request;
+                if (pr) {
+                    const remoteUrl = `https://x-access-token:${patToken}@github.com/${pr.base.repo.owner.login}/${pr.base.repo.name}.git`;
+                    await exec.exec('git', ['remote', 'set-url', 'origin', remoteUrl]);
+                    core.info('🔑 Configured git to use Personal Access Token');
+                }
+            }
+            catch (error) {
+                core.warning(`Could not configure git authentication: ${error}`);
+            }
         }
     }
     async configureGitUser() {
@@ -30359,12 +30380,12 @@ class FixitFelix {
         }
     }
     async commentOnPR(result) {
-        if (!process.env.GITHUB_TOKEN) {
-            core.warning('No GITHUB_TOKEN available - cannot comment on PR');
+        if (!this.token) {
+            core.warning('No token available - cannot comment on PR');
             return;
         }
         try {
-            const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
+            const octokit = github.getOctokit(this.token);
             const pr = this.context.payload.pull_request;
             if (!pr) {
                 core.warning('No pull request context available');
@@ -30404,10 +30425,10 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`;
         }
         // Try GitHub API first
         try {
-            if (!process.env.GITHUB_TOKEN) {
-                throw new Error('No GITHUB_TOKEN available');
+            if (!this.token) {
+                throw new Error('No token available');
             }
-            const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
+            const octokit = github.getOctokit(this.token);
             const files = await octokit.rest.pulls.listFiles({
                 owner: pr.base.repo.owner.login,
                 repo: pr.base.repo.name,
@@ -31235,7 +31256,8 @@ async function run() {
             dryRun: core.getBooleanInput('dry_run'),
             skipLabel: core.getInput('skip_label'),
             allowedBots: core.getInput('allowed_bots'),
-            paths: core.getInput('paths')
+            paths: core.getInput('paths'),
+            personalAccessToken: core.getInput('personal_access_token')
         };
         const felix = new felix_1.FixitFelix(inputs, github.context);
         const result = await felix.run();
