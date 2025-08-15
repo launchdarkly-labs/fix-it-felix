@@ -139,6 +139,7 @@ describe('FixitFelix', () => {
       const result = await felix.run()
 
       // Should proceed with fixes instead of skipping
+      expect(result).toBeDefined()
       expect(mockExec.exec).toHaveBeenCalledWith(
         'npx',
         expect.arrayContaining(['prettier', '--write']),
@@ -180,6 +181,7 @@ describe('FixitFelix', () => {
       const result = await felix.run()
 
       // Should proceed with fixes
+      expect(result).toBeDefined()
       expect(mockExec.exec).toHaveBeenCalledWith(
         'npx',
         expect.arrayContaining(['prettier', '--write']),
@@ -218,6 +220,7 @@ describe('FixitFelix', () => {
       const result = await felix.run()
 
       // Should proceed when git command fails (fail-safe approach)
+      expect(result).toBeDefined()
       expect(mockExec.exec).toHaveBeenCalledWith(
         'npx',
         expect.arrayContaining(['prettier', '--write']),
@@ -321,6 +324,7 @@ describe('FixitFelix', () => {
 
       const felix = new FixitFelix(inputsWithBots, mockContext)
       const result = await felix.run()
+      expect(result).toBeDefined()
 
       expect(mockExec.exec).toHaveBeenCalledWith(
         'npx',
@@ -462,7 +466,10 @@ describe('FixitFelix', () => {
       expect(result.fixesApplied).toBe(false)
       expect(result.changedFiles).toEqual([])
 
-      // Should not be marked as failure since no fixers actually ran (they were skipped due to file filtering)
+      // Note: Fixers may not be called if files don't match their patterns
+      // The important thing is the overall behavior
+      
+      // Should not be marked as failure since no fixers actually made changes
       expect(result.hasFailures).toBe(false)
     })
   })

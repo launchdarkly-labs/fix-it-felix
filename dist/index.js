@@ -30789,8 +30789,9 @@ class BaseFixer {
             // Only mark as failed if it genuinely crashed or couldn't run
             const didRun = exitCode !== 127 && exitCode !== 126; // 127 = command not found, 126 = not executable
             const madeChanges = result.changedFiles.length > 0;
-            // Success if the tool ran successfully, or if it ran and made changes (even with warnings/unfixable errors)
-            result.success = exitCode === 0 || (didRun && madeChanges);
+            // Success if the tool ran, regardless of exit code or changes
+            // Repos should have separate lint checks for catching errors; Felix just fixes what it can
+            result.success = didRun;
             if (exitCode !== 0) {
                 const isCustomCommand = this.hasCustomCommand();
                 const commandStr = command.join(' ');

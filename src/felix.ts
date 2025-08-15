@@ -6,7 +6,7 @@ import * as path from 'path'
 import { Context } from '@actions/github/lib/context'
 import { ConfigManager } from './config'
 import { createFixer, AVAILABLE_FIXERS } from './fixers'
-import { FelixInputs, FelixResult, FixerResult } from './types'
+import { FelixInputs, FelixResult } from './types'
 import { minimatch } from 'minimatch'
 
 export class FixitFelix {
