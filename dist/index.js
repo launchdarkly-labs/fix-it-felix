@@ -30305,7 +30305,7 @@ class FixitFelix {
                     await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`]);
                     if (this.inputs.debug) {
                         core.info('🔍 Debug: Push successful');
-                        core.info('🔍 Debug: Note: If workflows aren\'t triggering, check:');
+                        core.info("🔍 Debug: Note: If workflows aren't triggering, check:");
                         core.info('🔍 Debug:   - Token has "workflow" scope (for Classic PAT)');
                         core.info('🔍 Debug:   - Token has "Actions: write" permission (for Fine-grained PAT)');
                         core.info('🔍 Debug:   - Repository allows workflow triggers from pushes');
@@ -30604,7 +30604,19 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`;
                 extensions = fixerConfig.extensions || ['.js', '.jsx', '.ts', '.tsx', '.vue'];
                 break;
             case 'oxlint':
-                extensions = fixerConfig.extensions || ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx', '.vue', '.astro', '.svelte'];
+                extensions = fixerConfig.extensions || [
+                    '.js',
+                    '.mjs',
+                    '.cjs',
+                    '.jsx',
+                    '.ts',
+                    '.mts',
+                    '.cts',
+                    '.tsx',
+                    '.vue',
+                    '.astro',
+                    '.svelte'
+                ];
                 break;
             case 'prettier':
                 extensions = fixerConfig.extensions || [
