@@ -12,7 +12,8 @@ async function run(): Promise<void> {
       skipLabel: core.getInput('skip_label'),
       allowedBots: core.getInput('allowed_bots'),
       paths: core.getInput('paths'),
-      personalAccessToken: core.getInput('personal_access_token')
+      personalAccessToken: core.getInput('personal_access_token'),
+      debug: core.getBooleanInput('debug')
     }
 
     const felix = new FixitFelix(inputs, github.context)

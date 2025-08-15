@@ -307,7 +307,9 @@ describe('MarkdownLintFixer', () => {
         dryRun: true,
         skipLabel: 'skip-felix',
         commitMessage: 'Fix formatting',
-        allowedBots: 'dependabot'
+        allowedBots: 'dependabot',
+        personalAccessToken: '',
+        debug: false
       }
 
       // Create a mock config manager that ignores test-files
@@ -330,7 +332,9 @@ describe('MarkdownLintFixer', () => {
         dryRun: true,
         skipLabel: 'skip-felix',
         commitMessage: 'Fix formatting',
-        allowedBots: 'dependabot'
+        allowedBots: 'dependabot',
+        personalAccessToken: '',
+        debug: false
       }
 
       const configManager = new ConfigManager(mockInputs)
@@ -397,8 +401,8 @@ describe('BaseFixer Error Handling', () => {
     expect(result.changedFiles).toEqual(['src/test.ts', 'other/file.js'])
   })
 
-  it('should mark as failed when exit code is non-zero and no files were changed', async () => {
-    mockExec.mockResolvedValueOnce(1) // Command exits with error
+  it('should mark as successful when exit code is non-zero but tool ran (unfixable errors policy)', async () => {
+    mockExec.mockResolvedValueOnce(1) // Command exits with error but ran
     mockExec.mockImplementation((command, args, options) => {
       if (command === 'git' && args[0] === 'diff') {
         // Mock git diff to show no changes
@@ -413,8 +417,7 @@ describe('BaseFixer Error Handling', () => {
 
     const result = await fixer.run()
 
-    expect(result.success).toBe(false)
-    expect(result.error).toContain('exited with code 1')
+    expect(result.success).toBe(true) // Now successful if tool ran, even with unfixable errors
     expect(result.changedFiles).toEqual([])
   })
 

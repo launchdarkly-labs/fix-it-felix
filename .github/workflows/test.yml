@@ -66,6 +66,7 @@ jobs:
           fixers: 'prettier,markdownlint'
           paths: 'temp-test'
           dry_run: true
+          debug: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -161,5 +162,6 @@ jobs:
         uses: ./
         with:
           commit_message: '🤖 Fix-it Felix: Auto-fix formatting issues'
+          debug: true
         env:
           GITHUB_TOKEN: ${{ secrets.FELIX_PAT || secrets.GITHUB_TOKEN }}

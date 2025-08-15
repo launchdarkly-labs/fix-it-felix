@@ -7,6 +7,7 @@ export interface FelixInputs {
   allowedBots: string
   paths: string
   personalAccessToken?: string
+  debug: boolean
 }
 
 export interface FelixConfig {

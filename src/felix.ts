@@ -6,7 +6,7 @@ import * as path from 'path'
 import { Context } from '@actions/github/lib/context'
 import { ConfigManager } from './config'
 import { createFixer, AVAILABLE_FIXERS } from './fixers'
-import { FelixInputs, FelixResult, FixerResult } from './types'
+import { FelixInputs, FelixResult } from './types'
 import { minimatch } from 'minimatch'
 
 export class FixitFelix {
@@ -242,26 +242,81 @@ export class FixitFelix {
       // Configure git user if not already configured
       await this.configureGitUser()
 
+      if (this.inputs.debug) {
+        core.info(`🔍 Debug: Creating commit with message: "${this.inputs.commitMessage}"`)
+      }
+
       // Create commit
       await exec.exec('git', ['commit', '-m', this.inputs.commitMessage])
+
+      if (this.inputs.debug) {
+        core.info('🔍 Debug: Commit created successfully')
+
+        // Show commit details for debugging
+        let commitHash = ''
+        await exec.exec('git', ['rev-parse', 'HEAD'], {
+          listeners: {
+            stdout: (data: Buffer) => {
+              commitHash = data.toString().trim()
+            }
+          }
+        })
+        core.info(`🔍 Debug: Commit hash: ${commitHash}`)
+
+        // Show what authentication method will be used for push
+        const patToken = core.getInput('personal_access_token')
+        if (patToken) {
+          core.info('🔍 Debug: Push will use Personal Access Token authentication')
+        } else {
+          core.info('🔍 Debug: Push will use GITHUB_TOKEN authentication')
+        }
+      }
 
       // Push changes with explicit branch
       const pr = this.context.payload.pull_request
       const branchName = pr?.head?.ref
       if (branchName) {
         core.info(`🚀 Pushing changes to branch: ${branchName}`)
+
+        if (this.inputs.debug) {
+          core.info(`🔍 Debug: About to push to origin/${branchName}`)
+        }
+
         try {
           await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`])
+
+          if (this.inputs.debug) {
+            core.info('🔍 Debug: Push successful')
+            core.info("🔍 Debug: Note: If workflows aren't triggering, check:")
+            core.info('🔍 Debug:   - Token has "workflow" scope (for Classic PAT)')
+            core.info('🔍 Debug:   - Token has "Actions: write" permission (for Fine-grained PAT)')
+            core.info('🔍 Debug:   - Repository allows workflow triggers from pushes')
+          }
         } catch (pushError) {
           core.warning(`Push failed, attempting to sync with remote and retry: ${pushError}`)
+
+          if (this.inputs.debug) {
+            core.info('🔍 Debug: Initial push failed, attempting rebase and retry')
+          }
+
           try {
             // Use more reliable rebase approach
             await exec.exec('git', ['fetch', 'origin'])
             await exec.exec('git', ['rebase', `origin/${branchName}`])
             await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`])
             core.info(`✅ Successfully pushed after rebase`)
+
+            if (this.inputs.debug) {
+              core.info('🔍 Debug: Retry push successful after rebase')
+            }
           } catch (retryError) {
             core.error(`Failed to push even after rebase: ${retryError}`)
+
+            if (this.inputs.debug) {
+              core.info('🔍 Debug: Both initial push and retry failed')
+              core.info('🔍 Debug: This may indicate authentication or permission issues')
+            }
+
             throw new Error(`Could not push changes: ${retryError}`)
           }
         }
@@ -281,16 +336,64 @@ export class FixitFelix {
     const patToken = core.getInput('personal_access_token')
 
     if (patToken) {
+      if (this.inputs.debug) {
+        core.info('🔍 Debug: Personal Access Token provided')
+        core.info(`🔍 Debug: PAT length: ${patToken.length} characters`)
+        if (patToken.startsWith('ghp_')) {
+          core.info('🔍 Debug: Token format: Classic Personal Access Token')
+        } else if (patToken.startsWith('github_pat_')) {
+          core.info('🔍 Debug: Token format: Fine-grained Personal Access Token')
+        } else {
+          core.info('🔍 Debug: Token format: Unknown format')
+        }
+      }
+
       try {
         // Configure git to use PAT for authentication
         const pr = this.context.payload.pull_request
         if (pr) {
+          if (this.inputs.debug) {
+            core.info(
+              `🔍 Debug: Configuring PAT for repo: ${pr.base.repo.owner.login}/${pr.base.repo.name}`
+            )
+          }
+
           const remoteUrl = `https://x-access-token:${patToken}@github.com/${pr.base.repo.owner.login}/${pr.base.repo.name}.git`
           await exec.exec('git', ['remote', 'set-url', 'origin', remoteUrl])
           core.info('🔑 Configured git to use Personal Access Token')
+
+          if (this.inputs.debug) {
+            core.info('🔍 Debug: PAT authentication configured successfully')
+          }
+        } else {
+          core.warning('⚠️ No pull request context available for PAT configuration')
         }
       } catch (error) {
         core.warning(`Could not configure git authentication: ${error}`)
+        if (this.inputs.debug) {
+          core.info('🔍 Debug: PAT authentication failed, will fall back to GITHUB_TOKEN')
+        }
+      }
+    } else {
+      if (this.inputs.debug) {
+        const githubToken = this.token
+        if (githubToken) {
+          core.info('🔍 Debug: Using GITHUB_TOKEN for authentication')
+          core.info(`🔍 Debug: GITHUB_TOKEN length: ${githubToken.length} characters`)
+
+          if (githubToken.startsWith('ghs_')) {
+            core.info('🔍 Debug: Token format: GitHub Actions token')
+            core.info('🔍 Debug: ⚠️  Actions tokens have limited workflow triggering permissions')
+          } else if (githubToken.startsWith('ghp_')) {
+            core.info('🔍 Debug: Token format: Classic Personal Access Token')
+          } else if (githubToken.startsWith('github_pat_')) {
+            core.info('🔍 Debug: Token format: Fine-grained Personal Access Token')
+          } else {
+            core.info('🔍 Debug: Token format: Unknown format')
+          }
+        } else {
+          core.info('🔍 Debug: No GITHUB_TOKEN available')
+        }
       }
     }
   }
@@ -504,6 +607,21 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
       case 'eslint':
         extensions = fixerConfig.extensions || ['.js', '.jsx', '.ts', '.tsx', '.vue']
         break
+      case 'oxlint':
+        extensions = fixerConfig.extensions || [
+          '.js',
+          '.mjs',
+          '.cjs',
+          '.jsx',
+          '.ts',
+          '.mts',
+          '.cts',
+          '.tsx',
+          '.vue',
+          '.astro',
+          '.svelte'
+        ]
+        break
       case 'prettier':
         extensions = fixerConfig.extensions || [
           '.js',
@@ -528,25 +646,54 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
         return files
     }
 
+    if (this.inputs.debug) {
+      core.info(`🔍 Debug: Filtering ${files.length} files for ${fixerName}`)
+      core.info(`🔍 Debug: Extensions: ${extensions.join(', ')}`)
+      core.info(`🔍 Debug: Configured paths: ${configuredPaths.join(', ')}`)
+    }
+
     const filteredFiles = files.filter(file => {
       const ext = path.extname(file).toLowerCase()
 
       if (!extensions.includes(ext)) {
+        if (this.inputs.debug) {
+          core.info(`🔍 Debug: Excluded ${file}: extension ${ext} not in allowed extensions`)
+        }
         return false
       }
 
       // Check if file is within configured paths
       // If configuredPaths is ['.'], include all files (default behavior)
       if (configuredPaths.length === 1 && configuredPaths[0] === '.') {
+        if (this.inputs.debug) {
+          core.info(`🔍 Debug: Included ${file}: matches default path '.'`)
+        }
         return true
       }
 
       // Check if file matches any of the configured paths
-      return configuredPaths.some(configPath => {
-        // Use minimatch for proper glob pattern support
-        return minimatch(file, configPath)
+      const pathMatches = configuredPaths.some(configPath => {
+        const matches = minimatch(file, configPath)
+        if (this.inputs.debug) {
+          core.info(`🔍 Debug: Path check for ${file}: ${configPath} -> ${matches}`)
+        }
+        return matches
       })
+
+      if (this.inputs.debug) {
+        if (pathMatches) {
+          core.info(`🔍 Debug: Included ${file}: matches configured paths`)
+        } else {
+          core.info(`🔍 Debug: Excluded ${file}: no path match`)
+        }
+      }
+
+      return pathMatches
     })
+
+    if (this.inputs.debug) {
+      core.info(`🔍 Debug: Filtered result: ${filteredFiles.length} files`)
+    }
 
     return filteredFiles
   }
