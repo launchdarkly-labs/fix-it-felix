@@ -27,7 +27,9 @@ describe('FixitFelix', () => {
     dryRun: true,
     skipLabel: 'skip-felix',
     allowedBots: '',
-    paths: ''
+    paths: '',
+    personalAccessToken: '',
+    debug: false
   }
 
   const mockContext = {

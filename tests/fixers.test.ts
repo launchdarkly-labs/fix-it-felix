@@ -307,7 +307,9 @@ describe('MarkdownLintFixer', () => {
         dryRun: true,
         skipLabel: 'skip-felix',
         commitMessage: 'Fix formatting',
-        allowedBots: 'dependabot'
+        allowedBots: 'dependabot',
+        personalAccessToken: '',
+        debug: false
       }
 
       // Create a mock config manager that ignores test-files
@@ -330,7 +332,9 @@ describe('MarkdownLintFixer', () => {
         dryRun: true,
         skipLabel: 'skip-felix',
         commitMessage: 'Fix formatting',
-        allowedBots: 'dependabot'
+        allowedBots: 'dependabot',
+        personalAccessToken: '',
+        debug: false
       }
 
       const configManager = new ConfigManager(mockInputs)

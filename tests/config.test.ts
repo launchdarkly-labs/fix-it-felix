@@ -14,7 +14,9 @@ describe('ConfigManager', () => {
     dryRun: false,
     skipLabel: 'skip-felix',
     allowedBots: '',
-    paths: ''
+    paths: '',
+    personalAccessToken: '',
+    debug: false
   }
 
   beforeEach(() => {
