@@ -30089,6 +30089,8 @@ class FixitFelix {
         this.inputs = inputs;
         this.context = context;
         this.config = new config_1.ConfigManager(inputs);
+        // Use PAT if provided, otherwise fallback to GITHUB_TOKEN
+        this.token = core.getInput('personal_access_token') || process.env.GITHUB_TOKEN || '';
     }
     async run() {
         const result = {
@@ -30120,7 +30122,9 @@ class FixitFelix {
         for (const fixerName of fixers) {
             if (!fixers_1.AVAILABLE_FIXERS.includes(fixerName)) {
                 const fixerConfig = this.config.getFixerConfig(fixerName);
-                if (!fixerConfig.command || !Array.isArray(fixerConfig.command) || fixerConfig.command.length === 0) {
+                if (!fixerConfig.command ||
+                    !Array.isArray(fixerConfig.command) ||
+                    fixerConfig.command.length === 0) {
                     core.warning(`⚠️ Unknown fixer: ${fixerName}`);
                     continue;
                 }
@@ -30157,6 +30161,11 @@ class FixitFelix {
         }
         // Remove duplicates from changed files
         result.changedFiles = [...new Set(result.changedFiles)];
+        // Don't consider it a failure if we successfully applied any fixes
+        // Even if some fixers had unfixable errors, overall success if any fixes were made
+        if (result.fixesApplied) {
+            result.hasFailures = false;
+        }
         // Commit changes if any and not in dry-run mode
         if (result.fixesApplied && !this.inputs.dryRun) {
             await this.commitChanges(result.changedFiles);
@@ -30237,6 +30246,8 @@ class FixitFelix {
     }
     async commitChanges(changedFiles) {
         try {
+            // Configure git authentication if using PAT
+            await this.configureGitAuth();
             // Ensure we're on the correct branch
             await this.ensureCorrectBranch();
             // Stage the changed files
@@ -30273,6 +30284,14 @@ class FixitFelix {
                     }
                 });
                 core.info(`🔍 Debug: Commit hash: ${commitHash}`);
+                // Show what authentication method will be used for push
+                const patToken = core.getInput('personal_access_token');
+                if (patToken) {
+                    core.info('🔍 Debug: Push will use Personal Access Token authentication');
+                }
+                else {
+                    core.info('🔍 Debug: Push will use GITHUB_TOKEN authentication');
+                }
             }
             // Push changes with explicit branch
             const pr = this.context.payload.pull_request;
@@ -30286,7 +30305,10 @@ class FixitFelix {
                     await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`]);
                     if (this.inputs.debug) {
                         core.info('🔍 Debug: Push successful');
-                        core.info('🔍 Debug: Note: If workflows aren\'t triggering, check token permissions');
+                        core.info('🔍 Debug: Note: If workflows aren\'t triggering, check:');
+                        core.info('🔍 Debug:   - Token has "workflow" scope (for Classic PAT)');
+                        core.info('🔍 Debug:   - Token has "Actions: write" permission (for Fine-grained PAT)');
+                        core.info('🔍 Debug:   - Repository allows workflow triggers from pushes');
                     }
                 }
                 catch (pushError) {
@@ -30323,6 +30345,73 @@ class FixitFelix {
         }
         catch (error) {
             throw new Error(`Failed to commit changes: ${error}`);
+        }
+    }
+    async configureGitAuth() {
+        const patToken = core.getInput('personal_access_token');
+        if (patToken) {
+            if (this.inputs.debug) {
+                core.info('🔍 Debug: Personal Access Token provided');
+                core.info(`🔍 Debug: PAT length: ${patToken.length} characters`);
+                if (patToken.startsWith('ghp_')) {
+                    core.info('🔍 Debug: Token format: Classic Personal Access Token');
+                }
+                else if (patToken.startsWith('github_pat_')) {
+                    core.info('🔍 Debug: Token format: Fine-grained Personal Access Token');
+                }
+                else {
+                    core.info('🔍 Debug: Token format: Unknown format');
+                }
+            }
+            try {
+                // Configure git to use PAT for authentication
+                const pr = this.context.payload.pull_request;
+                if (pr) {
+                    if (this.inputs.debug) {
+                        core.info(`🔍 Debug: Configuring PAT for repo: ${pr.base.repo.owner.login}/${pr.base.repo.name}`);
+                    }
+                    const remoteUrl = `https://x-access-token:${patToken}@github.com/${pr.base.repo.owner.login}/${pr.base.repo.name}.git`;
+                    await exec.exec('git', ['remote', 'set-url', 'origin', remoteUrl]);
+                    core.info('🔑 Configured git to use Personal Access Token');
+                    if (this.inputs.debug) {
+                        core.info('🔍 Debug: PAT authentication configured successfully');
+                    }
+                }
+                else {
+                    core.warning('⚠️ No pull request context available for PAT configuration');
+                }
+            }
+            catch (error) {
+                core.warning(`Could not configure git authentication: ${error}`);
+                if (this.inputs.debug) {
+                    core.info('🔍 Debug: PAT authentication failed, will fall back to GITHUB_TOKEN');
+                }
+            }
+        }
+        else {
+            if (this.inputs.debug) {
+                const githubToken = this.token;
+                if (githubToken) {
+                    core.info('🔍 Debug: Using GITHUB_TOKEN for authentication');
+                    core.info(`🔍 Debug: GITHUB_TOKEN length: ${githubToken.length} characters`);
+                    if (githubToken.startsWith('ghs_')) {
+                        core.info('🔍 Debug: Token format: GitHub Actions token');
+                        core.info('🔍 Debug: ⚠️  Actions tokens have limited workflow triggering permissions');
+                    }
+                    else if (githubToken.startsWith('ghp_')) {
+                        core.info('🔍 Debug: Token format: Classic Personal Access Token');
+                    }
+                    else if (githubToken.startsWith('github_pat_')) {
+                        core.info('🔍 Debug: Token format: Fine-grained Personal Access Token');
+                    }
+                    else {
+                        core.info('🔍 Debug: Token format: Unknown format');
+                    }
+                }
+                else {
+                    core.info('🔍 Debug: No GITHUB_TOKEN available');
+                }
+            }
         }
     }
     async configureGitUser() {
@@ -30392,12 +30481,12 @@ class FixitFelix {
         }
     }
     async commentOnPR(result) {
-        if (!process.env.GITHUB_TOKEN) {
-            core.warning('No GITHUB_TOKEN available - cannot comment on PR');
+        if (!this.token) {
+            core.warning('No token available - cannot comment on PR');
             return;
         }
         try {
-            const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
+            const octokit = github.getOctokit(this.token);
             const pr = this.context.payload.pull_request;
             if (!pr) {
                 core.warning('No pull request context available');
@@ -30437,10 +30526,10 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`;
         }
         // Try GitHub API first
         try {
-            if (!process.env.GITHUB_TOKEN) {
-                throw new Error('No GITHUB_TOKEN available');
+            if (!this.token) {
+                throw new Error('No token available');
             }
-            const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
+            const octokit = github.getOctokit(this.token);
             const files = await octokit.rest.pulls.listFiles({
                 owner: pr.base.repo.owner.login,
                 repo: pr.base.repo.name,
@@ -30683,25 +30772,38 @@ class BaseFixer {
             };
             const exitCode = await exec.exec(command[0], command.slice(1), options);
             result.output = output;
-            result.success = exitCode === 0;
-            if (!result.success) {
+            result.changedFiles = await this.getChangedFiles();
+            // Consider the fixer successful if it ran (even if it found unfixable issues)
+            // Only mark as failed if it genuinely crashed or couldn't run
+            const didRun = exitCode !== 127 && exitCode !== 126; // 127 = command not found, 126 = not executable
+            const madeChanges = result.changedFiles.length > 0;
+            // Success if the tool ran successfully, or if it ran and made changes (even with warnings/unfixable errors)
+            result.success = exitCode === 0 || (didRun && madeChanges);
+            if (exitCode !== 0) {
                 const isCustomCommand = this.hasCustomCommand();
                 const commandStr = command.join(' ');
-                result.error = `${this.name} exited with code ${exitCode}`;
-                if (isCustomCommand) {
-                    core.error(`❌ Custom command failed: ${commandStr}`);
-                    core.error(`💡 Common fixes:`);
-                    core.error(`   • Ensure dependencies are installed (add 'npm ci' step before Felix)`);
-                    core.error(`   • Verify the command works locally: ${commandStr}`);
-                    core.error(`   • Check that npm scripts exist in package.json`);
-                    core.error(`   • Consider using built-in commands instead of custom ones`);
+                if (!result.success) {
+                    result.error = `${this.name} exited with code ${exitCode}`;
+                    if (isCustomCommand) {
+                        core.error(`❌ Custom command failed: ${commandStr}`);
+                        core.error(`💡 Common fixes:`);
+                        core.error(`   • Ensure dependencies are installed (add 'npm ci' step before Felix)`);
+                        core.error(`   • Verify the command works locally: ${commandStr}`);
+                        core.error(`   • Check that npm scripts exist in package.json`);
+                        core.error(`   • Consider using built-in commands instead of custom ones`);
+                    }
+                    else {
+                        core.error(`❌ ${this.name} failed with exit code ${exitCode}`);
+                    }
+                }
+                else if (madeChanges) {
+                    core.info(`✨ ${this.name} fixed ${result.changedFiles.length} files (exit code ${exitCode} with unfixable issues)`);
                 }
                 else {
-                    core.error(`❌ ${this.name} failed with exit code ${exitCode}`);
+                    core.info(`✨ ${this.name} ran successfully but found unfixable issues (exit code ${exitCode})`);
                 }
                 // Note: Don't call core.setFailed() here as it would prevent other fixers from running
             }
-            result.changedFiles = await this.getChangedFiles();
         }
         catch (error) {
             result.error = error instanceof Error ? error.message : String(error);
@@ -31098,7 +31200,19 @@ class OxlintFixer extends base_1.BaseFixer {
         return cmd;
     }
     getExtensions() {
-        return this.config.extensions || ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx', '.vue', '.astro', '.svelte'];
+        return (this.config.extensions || [
+            '.js',
+            '.mjs',
+            '.cjs',
+            '.jsx',
+            '.ts',
+            '.mts',
+            '.cts',
+            '.tsx',
+            '.vue',
+            '.astro',
+            '.svelte'
+        ]);
     }
 }
 exports.OxlintFixer = OxlintFixer;
@@ -31298,6 +31412,7 @@ async function run() {
             skipLabel: core.getInput('skip_label'),
             allowedBots: core.getInput('allowed_bots'),
             paths: core.getInput('paths'),
+            personalAccessToken: core.getInput('personal_access_token'),
             debug: core.getBooleanInput('debug')
         };
         const felix = new felix_1.FixitFelix(inputs, github.context);

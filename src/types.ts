@@ -6,6 +6,7 @@ export interface FelixInputs {
   skipLabel: string
   allowedBots: string
   paths: string
+  personalAccessToken?: string
   debug: boolean
 }
 

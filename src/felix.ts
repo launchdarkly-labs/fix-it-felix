@@ -13,11 +13,14 @@ export class FixitFelix {
   private inputs: FelixInputs
   private context: Context
   private config: ConfigManager
+  private token: string
 
   constructor(inputs: FelixInputs, context: Context) {
     this.inputs = inputs
     this.context = context
     this.config = new ConfigManager(inputs)
+    // Use PAT if provided, otherwise fallback to GITHUB_TOKEN
+    this.token = core.getInput('personal_access_token') || process.env.GITHUB_TOKEN || ''
   }
 
   async run(): Promise<FelixResult> {
@@ -56,7 +59,11 @@ export class FixitFelix {
     for (const fixerName of fixers) {
       if (!AVAILABLE_FIXERS.includes(fixerName)) {
         const fixerConfig = this.config.getFixerConfig(fixerName)
-        if (!fixerConfig.command || !Array.isArray(fixerConfig.command) || fixerConfig.command.length === 0) {
+        if (
+          !fixerConfig.command ||
+          !Array.isArray(fixerConfig.command) ||
+          fixerConfig.command.length === 0
+        ) {
           core.warning(`⚠️ Unknown fixer: ${fixerName}`)
           continue
         }
@@ -103,6 +110,12 @@ export class FixitFelix {
 
     // Remove duplicates from changed files
     result.changedFiles = [...new Set(result.changedFiles)]
+
+    // Don't consider it a failure if we successfully applied any fixes
+    // Even if some fixers had unfixable errors, overall success if any fixes were made
+    if (result.fixesApplied) {
+      result.hasFailures = false
+    }
 
     // Commit changes if any and not in dry-run mode
     if (result.fixesApplied && !this.inputs.dryRun) {
@@ -202,6 +215,9 @@ export class FixitFelix {
 
   private async commitChanges(changedFiles: string[]): Promise<void> {
     try {
+      // Configure git authentication if using PAT
+      await this.configureGitAuth()
+
       // Ensure we're on the correct branch
       await this.ensureCorrectBranch()
 
@@ -246,6 +262,14 @@ export class FixitFelix {
           }
         })
         core.info(`🔍 Debug: Commit hash: ${commitHash}`)
+        
+        // Show what authentication method will be used for push
+        const patToken = core.getInput('personal_access_token')
+        if (patToken) {
+          core.info('🔍 Debug: Push will use Personal Access Token authentication')
+        } else {
+          core.info('🔍 Debug: Push will use GITHUB_TOKEN authentication')
+        }
       }
 
       // Push changes with explicit branch
@@ -263,7 +287,10 @@ export class FixitFelix {
           
           if (this.inputs.debug) {
             core.info('🔍 Debug: Push successful')
-            core.info('🔍 Debug: Note: If workflows aren\'t triggering, check token permissions')
+            core.info('🔍 Debug: Note: If workflows aren\'t triggering, check:')
+            core.info('🔍 Debug:   - Token has "workflow" scope (for Classic PAT)')
+            core.info('🔍 Debug:   - Token has "Actions: write" permission (for Fine-grained PAT)')
+            core.info('🔍 Debug:   - Repository allows workflow triggers from pushes')
           }
         } catch (pushError) {
           core.warning(`Push failed, attempting to sync with remote and retry: ${pushError}`)
@@ -305,6 +332,70 @@ export class FixitFelix {
     }
   }
 
+  private async configureGitAuth(): Promise<void> {
+    const patToken = core.getInput('personal_access_token')
+
+    if (patToken) {
+      if (this.inputs.debug) {
+        core.info('🔍 Debug: Personal Access Token provided')
+        core.info(`🔍 Debug: PAT length: ${patToken.length} characters`)
+        if (patToken.startsWith('ghp_')) {
+          core.info('🔍 Debug: Token format: Classic Personal Access Token')
+        } else if (patToken.startsWith('github_pat_')) {
+          core.info('🔍 Debug: Token format: Fine-grained Personal Access Token')
+        } else {
+          core.info('🔍 Debug: Token format: Unknown format')
+        }
+      }
+
+      try {
+        // Configure git to use PAT for authentication
+        const pr = this.context.payload.pull_request
+        if (pr) {
+          if (this.inputs.debug) {
+            core.info(`🔍 Debug: Configuring PAT for repo: ${pr.base.repo.owner.login}/${pr.base.repo.name}`)
+          }
+
+          const remoteUrl = `https://x-access-token:${patToken}@github.com/${pr.base.repo.owner.login}/${pr.base.repo.name}.git`
+          await exec.exec('git', ['remote', 'set-url', 'origin', remoteUrl])
+          core.info('🔑 Configured git to use Personal Access Token')
+
+          if (this.inputs.debug) {
+            core.info('🔍 Debug: PAT authentication configured successfully')
+          }
+        } else {
+          core.warning('⚠️ No pull request context available for PAT configuration')
+        }
+      } catch (error) {
+        core.warning(`Could not configure git authentication: ${error}`)
+        if (this.inputs.debug) {
+          core.info('🔍 Debug: PAT authentication failed, will fall back to GITHUB_TOKEN')
+        }
+      }
+    } else {
+      if (this.inputs.debug) {
+        const githubToken = this.token
+        if (githubToken) {
+          core.info('🔍 Debug: Using GITHUB_TOKEN for authentication')
+          core.info(`🔍 Debug: GITHUB_TOKEN length: ${githubToken.length} characters`)
+          
+          if (githubToken.startsWith('ghs_')) {
+            core.info('🔍 Debug: Token format: GitHub Actions token')
+            core.info('🔍 Debug: ⚠️  Actions tokens have limited workflow triggering permissions')
+          } else if (githubToken.startsWith('ghp_')) {
+            core.info('🔍 Debug: Token format: Classic Personal Access Token')
+          } else if (githubToken.startsWith('github_pat_')) {
+            core.info('🔍 Debug: Token format: Fine-grained Personal Access Token')
+          } else {
+            core.info('🔍 Debug: Token format: Unknown format')
+          }
+        } else {
+          core.info('🔍 Debug: No GITHUB_TOKEN available')
+        }
+      }
+    }
+  }
+
   private async configureGitUser(): Promise<void> {
     try {
       await exec.exec('git', ['config', 'user.name', 'Fix-it Felix[bot]'])
@@ -334,26 +425,25 @@ export class FixitFelix {
   private async ensureCorrectBranch(): Promise<void> {
     const pr = this.context.payload.pull_request
     const branchName = pr?.head?.ref
-    
+
     if (!branchName) {
       throw new Error('Could not determine PR branch name')
     }
-    
+
     if (await this.isDetachedHead()) {
       core.info(`🔧 Detected detached HEAD, checking out branch: ${branchName}`)
-      
+
       // First, try to fetch the remote branch to check if it exists
       try {
         await exec.exec('git', ['fetch', 'origin', branchName])
         core.info(`📥 Fetched remote branch: ${branchName}`)
-        
+
         // If fetch succeeds, checkout the branch (which will track remote automatically)
         await exec.exec('git', ['checkout', branchName])
         core.info(`✅ Successfully checked out remote branch: ${branchName}`)
-        
       } catch (fetchError) {
         core.info(`Remote branch ${branchName} doesn't exist, creating locally`)
-        
+
         try {
           // Remote branch doesn't exist, try to checkout local branch
           await exec.exec('git', ['checkout', branchName])
@@ -375,13 +465,13 @@ export class FixitFelix {
   }
 
   private async commentOnPR(result: FelixResult): Promise<void> {
-    if (!process.env.GITHUB_TOKEN) {
-      core.warning('No GITHUB_TOKEN available - cannot comment on PR')
+    if (!this.token) {
+      core.warning('No token available - cannot comment on PR')
       return
     }
 
     try {
-      const octokit = github.getOctokit(process.env.GITHUB_TOKEN)
+      const octokit = github.getOctokit(this.token)
       const pr = this.context.payload.pull_request
 
       if (!pr) {
@@ -427,11 +517,11 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
 
     // Try GitHub API first
     try {
-      if (!process.env.GITHUB_TOKEN) {
-        throw new Error('No GITHUB_TOKEN available')
+      if (!this.token) {
+        throw new Error('No token available')
       }
 
-      const octokit = github.getOctokit(process.env.GITHUB_TOKEN)
+      const octokit = github.getOctokit(this.token)
       const files = await octokit.rest.pulls.listFiles({
         owner: pr.base.repo.owner.login,
         repo: pr.base.repo.name,
@@ -550,7 +640,7 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
 
     const filteredFiles = files.filter(file => {
       const ext = path.extname(file).toLowerCase()
-      
+
       if (!extensions.includes(ext)) {
         if (this.inputs.debug) {
           core.info(`🔍 Debug: Excluded ${file}: extension ${ext} not in allowed extensions`)

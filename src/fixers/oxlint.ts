@@ -78,6 +78,20 @@ export class OxlintFixer extends BaseFixer {
   }
 
   getExtensions(): string[] {
-    return this.config.extensions || ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx', '.vue', '.astro', '.svelte']
+    return (
+      this.config.extensions || [
+        '.js',
+        '.mjs',
+        '.cjs',
+        '.jsx',
+        '.ts',
+        '.mts',
+        '.cts',
+        '.tsx',
+        '.vue',
+        '.astro',
+        '.svelte'
+      ]
+    )
   }
 }

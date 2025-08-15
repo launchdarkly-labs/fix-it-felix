@@ -12,6 +12,7 @@ async function run(): Promise<void> {
       skipLabel: core.getInput('skip_label'),
       allowedBots: core.getInput('allowed_bots'),
       paths: core.getInput('paths'),
+      personalAccessToken: core.getInput('personal_access_token'),
       debug: core.getBooleanInput('debug')
     }
 
