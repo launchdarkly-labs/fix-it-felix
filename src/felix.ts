@@ -226,26 +226,70 @@ export class FixitFelix {
       // Configure git user if not already configured
       await this.configureGitUser()
 
+      if (this.inputs.debug) {
+        core.info(`🔍 Debug: Creating commit with message: "${this.inputs.commitMessage}"`)
+      }
+
       // Create commit
       await exec.exec('git', ['commit', '-m', this.inputs.commitMessage])
+
+      if (this.inputs.debug) {
+        core.info('🔍 Debug: Commit created successfully')
+        
+        // Show commit details for debugging
+        let commitHash = ''
+        await exec.exec('git', ['rev-parse', 'HEAD'], {
+          listeners: {
+            stdout: (data: Buffer) => {
+              commitHash = data.toString().trim()
+            }
+          }
+        })
+        core.info(`🔍 Debug: Commit hash: ${commitHash}`)
+      }
 
       // Push changes with explicit branch
       const pr = this.context.payload.pull_request
       const branchName = pr?.head?.ref
       if (branchName) {
         core.info(`🚀 Pushing changes to branch: ${branchName}`)
+        
+        if (this.inputs.debug) {
+          core.info(`🔍 Debug: About to push to origin/${branchName}`)
+        }
+        
         try {
           await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`])
+          
+          if (this.inputs.debug) {
+            core.info('🔍 Debug: Push successful')
+            core.info('🔍 Debug: Note: If workflows aren\'t triggering, check token permissions')
+          }
         } catch (pushError) {
           core.warning(`Push failed, attempting to sync with remote and retry: ${pushError}`)
+          
+          if (this.inputs.debug) {
+            core.info('🔍 Debug: Initial push failed, attempting rebase and retry')
+          }
+          
           try {
             // Use more reliable rebase approach
             await exec.exec('git', ['fetch', 'origin'])
             await exec.exec('git', ['rebase', `origin/${branchName}`])
             await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`])
             core.info(`✅ Successfully pushed after rebase`)
+            
+            if (this.inputs.debug) {
+              core.info('🔍 Debug: Retry push successful after rebase')
+            }
           } catch (retryError) {
             core.error(`Failed to push even after rebase: ${retryError}`)
+            
+            if (this.inputs.debug) {
+              core.info('🔍 Debug: Both initial push and retry failed')
+              core.info('🔍 Debug: This may indicate authentication or permission issues')
+            }
+            
             throw new Error(`Could not push changes: ${retryError}`)
           }
         }
@@ -471,6 +515,9 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
       case 'eslint':
         extensions = fixerConfig.extensions || ['.js', '.jsx', '.ts', '.tsx', '.vue']
         break
+      case 'oxlint':
+        extensions = fixerConfig.extensions || ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx', '.vue', '.astro', '.svelte']
+        break
       case 'prettier':
         extensions = fixerConfig.extensions || [
           '.js',
@@ -495,25 +542,54 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
         return files
     }
 
+    if (this.inputs.debug) {
+      core.info(`🔍 Debug: Filtering ${files.length} files for ${fixerName}`)
+      core.info(`🔍 Debug: Extensions: ${extensions.join(', ')}`)
+      core.info(`🔍 Debug: Configured paths: ${configuredPaths.join(', ')}`)
+    }
+
     const filteredFiles = files.filter(file => {
       const ext = path.extname(file).toLowerCase()
       
       if (!extensions.includes(ext)) {
+        if (this.inputs.debug) {
+          core.info(`🔍 Debug: Excluded ${file}: extension ${ext} not in allowed extensions`)
+        }
         return false
       }
 
       // Check if file is within configured paths
       // If configuredPaths is ['.'], include all files (default behavior)
       if (configuredPaths.length === 1 && configuredPaths[0] === '.') {
+        if (this.inputs.debug) {
+          core.info(`🔍 Debug: Included ${file}: matches default path '.'`)
+        }
         return true
       }
 
       // Check if file matches any of the configured paths
-      return configuredPaths.some(configPath => {
-        // Use minimatch for proper glob pattern support
-        return minimatch(file, configPath)
+      const pathMatches = configuredPaths.some(configPath => {
+        const matches = minimatch(file, configPath)
+        if (this.inputs.debug) {
+          core.info(`🔍 Debug: Path check for ${file}: ${configPath} -> ${matches}`)
+        }
+        return matches
       })
+
+      if (this.inputs.debug) {
+        if (pathMatches) {
+          core.info(`🔍 Debug: Included ${file}: matches configured paths`)
+        } else {
+          core.info(`🔍 Debug: Excluded ${file}: no path match`)
+        }
+      }
+
+      return pathMatches
     })
+
+    if (this.inputs.debug) {
+      core.info(`🔍 Debug: Filtered result: ${filteredFiles.length} files`)
+    }
     
     return filteredFiles
   }

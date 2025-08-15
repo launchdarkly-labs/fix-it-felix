@@ -40,6 +40,11 @@ inputs:
     description: 'Comma-separated list of paths to run fixers on (e.g., src,docs)'
     required: false
 
+  debug:
+    description: 'Enable verbose debug logging for file filtering and fixer operations'
+    required: false
+    default: 'false'
+
 outputs:
   fixes_applied:
     description: 'Whether any fixes were applied'
