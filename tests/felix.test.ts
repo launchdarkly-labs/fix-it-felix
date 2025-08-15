@@ -468,7 +468,7 @@ describe('FixitFelix', () => {
 
       // Note: Fixers may not be called if files don't match their patterns
       // The important thing is the overall behavior
-      
+
       // Should not be marked as failure since no fixers actually made changes
       expect(result.hasFailures).toBe(false)
     })
