@@ -251,7 +251,7 @@ export class FixitFelix {
 
       if (this.inputs.debug) {
         core.info('🔍 Debug: Commit created successfully')
-        
+
         // Show commit details for debugging
         let commitHash = ''
         await exec.exec('git', ['rev-parse', 'HEAD'], {
@@ -262,7 +262,7 @@ export class FixitFelix {
           }
         })
         core.info(`🔍 Debug: Commit hash: ${commitHash}`)
-        
+
         // Show what authentication method will be used for push
         const patToken = core.getInput('personal_access_token')
         if (patToken) {
@@ -277,46 +277,46 @@ export class FixitFelix {
       const branchName = pr?.head?.ref
       if (branchName) {
         core.info(`🚀 Pushing changes to branch: ${branchName}`)
-        
+
         if (this.inputs.debug) {
           core.info(`🔍 Debug: About to push to origin/${branchName}`)
         }
-        
+
         try {
           await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`])
-          
+
           if (this.inputs.debug) {
             core.info('🔍 Debug: Push successful')
-            core.info('🔍 Debug: Note: If workflows aren\'t triggering, check:')
+            core.info("🔍 Debug: Note: If workflows aren't triggering, check:")
             core.info('🔍 Debug:   - Token has "workflow" scope (for Classic PAT)')
             core.info('🔍 Debug:   - Token has "Actions: write" permission (for Fine-grained PAT)')
             core.info('🔍 Debug:   - Repository allows workflow triggers from pushes')
           }
         } catch (pushError) {
           core.warning(`Push failed, attempting to sync with remote and retry: ${pushError}`)
-          
+
           if (this.inputs.debug) {
             core.info('🔍 Debug: Initial push failed, attempting rebase and retry')
           }
-          
+
           try {
             // Use more reliable rebase approach
             await exec.exec('git', ['fetch', 'origin'])
             await exec.exec('git', ['rebase', `origin/${branchName}`])
             await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`])
             core.info(`✅ Successfully pushed after rebase`)
-            
+
             if (this.inputs.debug) {
               core.info('🔍 Debug: Retry push successful after rebase')
             }
           } catch (retryError) {
             core.error(`Failed to push even after rebase: ${retryError}`)
-            
+
             if (this.inputs.debug) {
               core.info('🔍 Debug: Both initial push and retry failed')
               core.info('🔍 Debug: This may indicate authentication or permission issues')
             }
-            
+
             throw new Error(`Could not push changes: ${retryError}`)
           }
         }
@@ -353,7 +353,9 @@ export class FixitFelix {
         const pr = this.context.payload.pull_request
         if (pr) {
           if (this.inputs.debug) {
-            core.info(`🔍 Debug: Configuring PAT for repo: ${pr.base.repo.owner.login}/${pr.base.repo.name}`)
+            core.info(
+              `🔍 Debug: Configuring PAT for repo: ${pr.base.repo.owner.login}/${pr.base.repo.name}`
+            )
           }
 
           const remoteUrl = `https://x-access-token:${patToken}@github.com/${pr.base.repo.owner.login}/${pr.base.repo.name}.git`
@@ -378,7 +380,7 @@ export class FixitFelix {
         if (githubToken) {
           core.info('🔍 Debug: Using GITHUB_TOKEN for authentication')
           core.info(`🔍 Debug: GITHUB_TOKEN length: ${githubToken.length} characters`)
-          
+
           if (githubToken.startsWith('ghs_')) {
             core.info('🔍 Debug: Token format: GitHub Actions token')
             core.info('🔍 Debug: ⚠️  Actions tokens have limited workflow triggering permissions')
@@ -606,7 +608,19 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
         extensions = fixerConfig.extensions || ['.js', '.jsx', '.ts', '.tsx', '.vue']
         break
       case 'oxlint':
-        extensions = fixerConfig.extensions || ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx', '.vue', '.astro', '.svelte']
+        extensions = fixerConfig.extensions || [
+          '.js',
+          '.mjs',
+          '.cjs',
+          '.jsx',
+          '.ts',
+          '.mts',
+          '.cts',
+          '.tsx',
+          '.vue',
+          '.astro',
+          '.svelte'
+        ]
         break
       case 'prettier':
         extensions = fixerConfig.extensions || [
@@ -680,7 +694,7 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
     if (this.inputs.debug) {
       core.info(`🔍 Debug: Filtered result: ${filteredFiles.length} files`)
     }
-    
+
     return filteredFiles
   }
 }
