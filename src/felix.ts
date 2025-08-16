@@ -524,13 +524,13 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
       }
 
       const octokit = github.getOctokit(this.token)
-      const files = await octokit.rest.pulls.listFiles({
+      const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
         owner: pr.base.repo.owner.login,
         repo: pr.base.repo.name,
         pull_number: pr.number
       })
 
-      const changedFiles = files.data
+      const changedFiles = files
         .map((f: any) => f.filename)
         .filter((file: string) => {
           // Skip deleted files
