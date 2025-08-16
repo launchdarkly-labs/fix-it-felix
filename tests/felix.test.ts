@@ -500,15 +500,15 @@ describe('FixitFelix', () => {
         payload: {
           pull_request: {
             number: 456,
-            base: { 
+            base: {
               ref: 'main',
-              repo: { 
+              repo: {
                 owner: { login: 'test-owner' },
                 name: 'test-repo',
                 full_name: 'test-owner/test-repo'
               }
             },
-            head: { 
+            head: {
               ref: 'feature',
               repo: { full_name: 'test-owner/test-repo' }
             }
@@ -574,7 +574,7 @@ describe('FixitFelix', () => {
         mockOctokit.rest.pulls.listFiles,
         expect.objectContaining({
           owner: 'test-owner',
-          repo: 'test-repo', 
+          repo: 'test-repo',
           pull_number: 456
         })
       )
