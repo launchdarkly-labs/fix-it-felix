@@ -473,4 +473,122 @@ describe('FixitFelix', () => {
       expect(result.hasFailures).toBe(false)
     })
   })
+
+  describe('GitHub API pagination', () => {
+    it('should handle PRs with more than 30 files using pagination', async () => {
+      const inputsWithPrettier: FelixInputs = {
+        ...defaultInputs,
+        fixers: 'prettier',
+        dryRun: true
+      }
+
+      // Mock core.getInput to provide a token
+      jest.spyOn(require('@actions/core'), 'getInput').mockImplementation((name: any) => {
+        if (name === 'personal_access_token') return 'mock-token'
+        return ''
+      })
+
+      // Mock process.env.GITHUB_TOKEN as fallback
+      const originalEnv = process.env.GITHUB_TOKEN
+      process.env.GITHUB_TOKEN = 'mock-github-token'
+
+      // Create a proper mock context with PR details
+      const mockPaginationContext = {
+        repo: { owner: 'test-owner', repo: 'test-repo' },
+        issue: { number: 456 },
+        eventName: 'pull_request',
+        payload: {
+          pull_request: {
+            number: 456,
+            base: { 
+              ref: 'main',
+              repo: { 
+                owner: { login: 'test-owner' },
+                name: 'test-repo',
+                full_name: 'test-owner/test-repo'
+              }
+            },
+            head: { 
+              ref: 'feature',
+              repo: { full_name: 'test-owner/test-repo' }
+            }
+          }
+        }
+      } as any
+
+      // Generate 50 mock files (more than the default 30 file limit)
+      const mockFiles = []
+      for (let i = 1; i <= 50; i++) {
+        mockFiles.push({ filename: `src/file${i}.ts` })
+      }
+
+      // Mock pagination to return all 50 files
+      const mockOctokit = {
+        paginate: jest.fn().mockResolvedValue(mockFiles),
+        rest: {
+          pulls: {
+            listFiles: jest.fn() // This won't be called when using paginate
+          }
+        }
+      }
+
+      jest.spyOn(require('@actions/github'), 'getOctokit').mockReturnValue(mockOctokit)
+
+      // Mock fs.existsSync to return true for all files
+      const mockFs = require('fs')
+      mockFs.existsSync.mockImplementation((path: string) => {
+        return path.startsWith('src/file') && path.endsWith('.ts')
+      })
+
+      mockExec.exec.mockImplementation((command, args, options) => {
+        if (args && args.includes('--pretty=format:%an')) {
+          options?.listeners?.stdout?.(Buffer.from('Regular User'))
+        } else if (args && args.includes('--pretty=format:%s')) {
+          options?.listeners?.stdout?.(Buffer.from('Regular commit'))
+        } else if (command === 'npx' && args && args.includes('--version')) {
+          // Mock prettier version check
+          options?.listeners?.stdout?.(Buffer.from('2.8.0'))
+          return Promise.resolve(0)
+        } else if (
+          command === 'npx' &&
+          args &&
+          args.includes('prettier') &&
+          args.includes('--write')
+        ) {
+          // Mock prettier command - should receive all 50 files
+          const fileArgs = args.filter(arg => arg.startsWith('src/file') && arg.endsWith('.ts'))
+          expect(fileArgs.length).toBe(50) // Verify all 50 files are passed to prettier
+          return Promise.resolve(0)
+        } else if (args && args.includes('--name-only') && !args.includes('origin/')) {
+          // Mock git diff for changed files after running fixer
+          options?.listeners?.stdout?.(Buffer.from('src/file1.ts\nsrc/file2.ts'))
+        }
+        return Promise.resolve(0)
+      })
+
+      const felix = new FixitFelix(inputsWithPrettier, mockPaginationContext)
+      const result = await felix.run()
+
+      // Verify pagination was used
+      expect(mockOctokit.paginate).toHaveBeenCalledWith(
+        mockOctokit.rest.pulls.listFiles,
+        expect.objectContaining({
+          owner: 'test-owner',
+          repo: 'test-repo', 
+          pull_number: 456
+        })
+      )
+
+      // Should have processed files successfully
+      expect(result).toBeDefined()
+      expect(mockExec.exec).toHaveBeenCalledWith(
+        'npx',
+        expect.arrayContaining(['prettier', '--write']),
+        expect.any(Object)
+      )
+
+      // Restore environment
+      process.env.GITHUB_TOKEN = originalEnv
+    })
+  })
 })
