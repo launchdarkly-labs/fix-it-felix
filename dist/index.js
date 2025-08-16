@@ -30530,12 +30530,12 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`;
                 throw new Error('No token available');
             }
             const octokit = github.getOctokit(this.token);
-            const files = await octokit.rest.pulls.listFiles({
+            const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
                 owner: pr.base.repo.owner.login,
                 repo: pr.base.repo.name,
                 pull_number: pr.number
             });
-            const changedFiles = files.data
+            const changedFiles = files
                 .map((f) => f.filename)
                 .filter((file) => {
                 // Skip deleted files
