@@ -8,6 +8,7 @@ export interface FelixInputs {
   paths: string
   personalAccessToken?: string
   debug: boolean
+  skipDraftPrs: boolean
 }
 
 export interface FelixConfig {

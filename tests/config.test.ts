@@ -16,7 +16,8 @@ describe('ConfigManager', () => {
     allowedBots: '',
     paths: '',
     personalAccessToken: '',
-    debug: false
+    debug: false,
+    skipDraftPrs: false
   }
 
   beforeEach(() => {

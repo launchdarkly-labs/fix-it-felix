@@ -30182,8 +30182,13 @@ class FixitFelix {
             core.info('Not a pull request event');
             return true;
         }
-        // Skip if PR has skip label
         const pr = this.context.payload.pull_request;
+        // Skip if draft PR and skipDraftPrs is enabled
+        if (this.inputs.skipDraftPrs && pr?.draft) {
+            core.info('PR is a draft and skip_draft_prs is enabled');
+            return true;
+        }
+        // Skip if PR has skip label
         if (pr?.labels?.some((label) => label.name === this.inputs.skipLabel)) {
             core.info(`PR has skip label: ${this.inputs.skipLabel}`);
             return true;
@@ -31426,7 +31431,8 @@ async function run() {
             allowedBots: core.getInput('allowed_bots'),
             paths: core.getInput('paths'),
             personalAccessToken: core.getInput('personal_access_token'),
-            debug: core.getBooleanInput('debug')
+            debug: core.getBooleanInput('debug'),
+            skipDraftPrs: core.getBooleanInput('skip_draft_prs')
         };
         const felix = new felix_1.FixitFelix(inputs, github.context);
         const result = await felix.run();
