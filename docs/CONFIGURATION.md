@@ -40,6 +40,7 @@ Configure Felix behavior through GitHub Action inputs:
 | `config_path`    | Path to Felix configuration file                          | `.felixrc.json`                                   |
 | `dry_run`        | Run in dry-run mode (comment instead of commit)           | `false`                                           |
 | `skip_label`     | PR label that skips Felix processing                      | `skip-felix`                                      |
+| `skip_draft_prs` | Skip processing draft pull requests                       | `false`                                           |
 | `allowed_bots`   | Comma-separated list of bot names Felix should run against | (empty)                                           |
 
 ### Example
@@ -68,6 +69,7 @@ steps:
       config_path: '.custom-felix.json'
       dry_run: false
       skip_label: 'no-autofix'
+      skip_draft_prs: true
       allowed_bots: 'dependabot,renovate'
 ```
 

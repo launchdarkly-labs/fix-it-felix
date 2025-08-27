@@ -29,7 +29,8 @@ describe('FixitFelix', () => {
     allowedBots: '',
     paths: '',
     personalAccessToken: '',
-    debug: false
+    debug: false,
+    skipDraftPrs: false
   }
 
   const mockContext = {
@@ -580,6 +581,230 @@ describe('FixitFelix', () => {
       )
 
       // Should have processed files successfully
+      expect(result).toBeDefined()
+      expect(mockExec.exec).toHaveBeenCalledWith(
+        'npx',
+        expect.arrayContaining(['prettier', '--write']),
+        expect.any(Object)
+      )
+
+      // Restore environment
+      process.env.GITHUB_TOKEN = originalEnv
+    })
+  })
+
+  describe('draft PR handling', () => {
+    it('should skip when PR is draft and skip_draft_prs is enabled', async () => {
+      const inputsWithSkipDraft = {
+        ...defaultInputs,
+        skipDraftPrs: true
+      }
+
+      const draftContext = {
+        ...mockContext,
+        payload: {
+          ...mockContext.payload,
+          pull_request: {
+            ...mockContext.payload.pull_request,
+            draft: true
+          }
+        }
+      }
+
+      const felix = new FixitFelix(inputsWithSkipDraft, draftContext)
+      const result = await felix.run()
+
+      expect(result.fixesApplied).toBe(false)
+      expect(result.changedFiles).toEqual([])
+    })
+
+    it('should proceed when PR is draft but skip_draft_prs is disabled', async () => {
+      const inputsWithoutSkipDraft = {
+        ...defaultInputs,
+        skipDraftPrs: false
+      }
+
+      // Create a proper mock context with PR details
+      const draftPRContext = {
+        repo: { owner: 'test-owner', repo: 'test-repo' },
+        issue: { number: 456 },
+        eventName: 'pull_request',
+        payload: {
+          pull_request: {
+            number: 456,
+            draft: true,
+            base: {
+              ref: 'main',
+              repo: {
+                owner: { login: 'test-owner' },
+                name: 'test-repo',
+                full_name: 'test-owner/test-repo'
+              }
+            },
+            head: {
+              ref: 'feature',
+              repo: { full_name: 'test-owner/test-repo' }
+            }
+          }
+        }
+      } as any
+
+      // Mock core.getInput to provide a token
+      jest.spyOn(require('@actions/core'), 'getInput').mockImplementation((name: any) => {
+        if (name === 'personal_access_token') return 'mock-token'
+        return ''
+      })
+
+      // Mock process.env.GITHUB_TOKEN as fallback
+      const originalEnv = process.env.GITHUB_TOKEN
+      process.env.GITHUB_TOKEN = 'mock-github-token'
+
+      // Mock GitHub API
+      const mockOctokit = {
+        paginate: jest.fn().mockResolvedValue([{ filename: 'src/test.js' }]),
+        rest: {
+          pulls: {
+            listFiles: jest.fn()
+          }
+        }
+      }
+
+      jest.spyOn(require('@actions/github'), 'getOctokit').mockReturnValue(mockOctokit)
+
+      // Mock fs.existsSync to return true for test files
+      const mockFs = require('fs')
+      mockFs.existsSync.mockImplementation((path: string) => {
+        return path === 'src/test.js'
+      })
+
+      // Mock git commands for regular processing
+      mockExec.exec.mockImplementation((command, args, options) => {
+        if (args && args.includes('--pretty=format:%an')) {
+          options?.listeners?.stdout?.(Buffer.from('Regular User'))
+        } else if (args && args.includes('--pretty=format:%s')) {
+          options?.listeners?.stdout?.(Buffer.from('Regular commit'))
+        } else if (command === 'npx' && args && args.includes('--version')) {
+          // Mock prettier version check
+          options?.listeners?.stdout?.(Buffer.from('2.8.0'))
+          return Promise.resolve(0)
+        } else if (
+          command === 'npx' &&
+          args &&
+          args.includes('prettier') &&
+          args.includes('--write')
+        ) {
+          // Mock prettier command
+          return Promise.resolve(0)
+        } else if (args && args.includes('--name-only') && !args.includes('origin/')) {
+          // Mock git diff for changed files after running fixer
+          options?.listeners?.stdout?.(Buffer.from('src/test.js'))
+        }
+        return Promise.resolve(0)
+      })
+
+      const felix = new FixitFelix(inputsWithoutSkipDraft, draftPRContext)
+      const result = await felix.run()
+
+      // Should proceed with fixes even though PR is draft
+      expect(result).toBeDefined()
+      expect(mockExec.exec).toHaveBeenCalledWith(
+        'npx',
+        expect.arrayContaining(['prettier', '--write']),
+        expect.any(Object)
+      )
+
+      // Restore environment
+      process.env.GITHUB_TOKEN = originalEnv
+    })
+
+    it('should proceed when PR is not draft regardless of skip_draft_prs setting', async () => {
+      const inputsWithSkipDraft = {
+        ...defaultInputs,
+        skipDraftPrs: true
+      }
+
+      // Create a proper mock context with PR details for non-draft PR
+      const nonDraftPRContext = {
+        repo: { owner: 'test-owner', repo: 'test-repo' },
+        issue: { number: 456 },
+        eventName: 'pull_request',
+        payload: {
+          pull_request: {
+            number: 456,
+            draft: false,
+            base: {
+              ref: 'main',
+              repo: {
+                owner: { login: 'test-owner' },
+                name: 'test-repo',
+                full_name: 'test-owner/test-repo'
+              }
+            },
+            head: {
+              ref: 'feature',
+              repo: { full_name: 'test-owner/test-repo' }
+            }
+          }
+        }
+      } as any
+
+      // Mock core.getInput to provide a token
+      jest.spyOn(require('@actions/core'), 'getInput').mockImplementation((name: any) => {
+        if (name === 'personal_access_token') return 'mock-token'
+        return ''
+      })
+
+      // Mock process.env.GITHUB_TOKEN as fallback
+      const originalEnv = process.env.GITHUB_TOKEN
+      process.env.GITHUB_TOKEN = 'mock-github-token'
+
+      // Mock GitHub API
+      const mockOctokit = {
+        paginate: jest.fn().mockResolvedValue([{ filename: 'src/test.js' }]),
+        rest: {
+          pulls: {
+            listFiles: jest.fn()
+          }
+        }
+      }
+
+      jest.spyOn(require('@actions/github'), 'getOctokit').mockReturnValue(mockOctokit)
+
+      // Mock fs.existsSync to return true for test files
+      const mockFs = require('fs')
+      mockFs.existsSync.mockImplementation((path: string) => {
+        return path === 'src/test.js'
+      })
+
+      // Mock git commands for regular processing
+      mockExec.exec.mockImplementation((command, args, options) => {
+        if (args && args.includes('--pretty=format:%an')) {
+          options?.listeners?.stdout?.(Buffer.from('Regular User'))
+        } else if (args && args.includes('--pretty=format:%s')) {
+          options?.listeners?.stdout?.(Buffer.from('Regular commit'))
+        } else if (command === 'npx' && args && args.includes('--version')) {
+          // Mock prettier version check
+          options?.listeners?.stdout?.(Buffer.from('2.8.0'))
+          return Promise.resolve(0)
+        } else if (
+          command === 'npx' &&
+          args &&
+          args.includes('prettier') &&
+          args.includes('--write')
+        ) {
+          // Mock prettier command
+          return Promise.resolve(0)
+        } else if (args && args.includes('--name-only') && !args.includes('origin/')) {
+          // Mock git diff for changed files after running fixer
+          options?.listeners?.stdout?.(Buffer.from('src/test.js'))
+        }
+        return Promise.resolve(0)
+      })
+
+      const felix = new FixitFelix(inputsWithSkipDraft, nonDraftPRContext)
+      const result = await felix.run()
+
+      // Should proceed with fixes when PR is not draft
       expect(result).toBeDefined()
       expect(mockExec.exec).toHaveBeenCalledWith(
         'npx',

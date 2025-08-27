@@ -135,8 +135,15 @@ export class FixitFelix {
       return true
     }
 
-    // Skip if PR has skip label
     const pr = this.context.payload.pull_request
+
+    // Skip if draft PR and skipDraftPrs is enabled
+    if (this.inputs.skipDraftPrs && pr?.draft) {
+      core.info('PR is a draft and skip_draft_prs is enabled')
+      return true
+    }
+
+    // Skip if PR has skip label
     if (pr?.labels?.some((label: any) => label.name === this.inputs.skipLabel)) {
       core.info(`PR has skip label: ${this.inputs.skipLabel}`)
       return true
