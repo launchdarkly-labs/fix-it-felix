@@ -190,6 +190,7 @@ By default, Felix processes draft PRs just like regular PRs. You can configure F
 ```
 
 This is useful when you want to:
+
 - Prevent commits on work-in-progress PRs
 - Let developers refine their changes before auto-fixing
 - Reduce action runs during development
