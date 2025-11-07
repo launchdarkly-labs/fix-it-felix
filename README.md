@@ -13,6 +13,7 @@
 - 🛡️ **Safety First**: Built-in safeguards against infinite loops
 - 🔍 **Dry-run Mode**: Preview changes without committing
 - 🚫 **Skip Control**: Label-based opt-out mechanism
+- 📄 **Draft PR Control**: Optionally skip draft PRs
 - 🍴 **Fork Friendly**: Handles forked PRs gracefully
 
 ## 🚀 Quick Start
@@ -70,6 +71,7 @@ jobs:
 | `config_path`    | Path to Felix configuration file                           | No       | `.felixrc.json`                                   |
 | `dry_run`        | Run in dry-run mode (comment instead of commit)            | No       | `false`                                           |
 | `skip_label`     | PR label that skips Felix processing                       | No       | `skip-felix`                                      |
+| `skip_draft_prs` | Skip processing draft pull requests                        | No       | `false`                                           |
 | `allowed_bots`   | Comma-separated list of bot names Felix should run against | No       | ``                                                |
 | `paths`          | Comma-separated list of paths to run fixers on             | No       | `.`                                               |
 
@@ -193,9 +195,27 @@ Use your own npm scripts instead of built-in commands:
 - Skips processing (cannot commit to forks with default token)
 - Logs appropriate messages
 
+### Draft PR Handling
+
+By default, Felix processes draft PRs just like regular PRs. You can configure Felix to skip draft PRs entirely:
+
+```yaml
+- name: Run Fix-it Felix
+  uses: launchdarkly/fix-it-felix-action@v1
+  with:
+    skip_draft_prs: true
+```
+
+This is useful when you want to:
+
+- Prevent commits on work-in-progress PRs
+- Let developers refine their changes before auto-fixing
+- Reduce action runs during development
+
 ### Skip Mechanisms
 
 - **Label-based**: Add `skip-felix` label to PR
+- **Draft PRs**: Set `skip_draft_prs: true` to skip draft PRs
 - **Configuration**: Set `fixers: []` in `.felixrc.json`
 - **Event-based**: Only runs on specific PR events
 

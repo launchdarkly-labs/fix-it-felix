@@ -6,6 +6,9 @@ export interface FelixInputs {
   skipLabel: string
   allowedBots: string
   paths: string
+  personalAccessToken?: string
+  debug: boolean
+  skipDraftPrs: boolean
 }
 
 export interface FixerConfig {
@@ -16,6 +19,13 @@ export interface FixerConfig {
   command?: string[]
   appendPaths?: boolean
   env?: Record<string, string>
+  // oxlint-specific properties
+  allow?: string[]
+  warn?: string[]
+  deny?: string[]
+  importPlugin?: boolean
+  reactPlugin?: boolean
+  tsconfig?: string
 }
 
 export interface InlineFixerConfig extends FixerConfig {

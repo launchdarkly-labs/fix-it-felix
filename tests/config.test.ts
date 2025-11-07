@@ -14,7 +14,10 @@ describe('ConfigManager', () => {
     dryRun: false,
     skipLabel: 'skip-felix',
     allowedBots: '',
-    paths: ''
+    paths: '',
+    personalAccessToken: '',
+    debug: false,
+    skipDraftPrs: false
   }
 
   beforeEach(() => {
@@ -34,6 +37,7 @@ describe('ConfigManager', () => {
 
       const manager = new ConfigManager(defaultInputs)
 
+      expect(manager).toBeDefined()
       expect(mockFs.existsSync).toHaveBeenCalledWith('.felixrc.json')
       expect(mockFs.readFileSync).toHaveBeenCalledWith('.felixrc.json', 'utf8')
     })
@@ -43,6 +47,7 @@ describe('ConfigManager', () => {
 
       const manager = new ConfigManager(defaultInputs)
 
+      expect(manager).toBeDefined()
       expect(mockFs.existsSync).toHaveBeenCalledWith('.felixrc.json')
       expect(mockFs.readFileSync).not.toHaveBeenCalled()
     })

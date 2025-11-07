@@ -34,6 +34,7 @@ jobs:
           commit_message: '🤖 Fix-it Felix: Automated code quality improvements'
           config_path: '.felixrc.json'
           skip_label: 'no-autofix'
+          skip_draft_prs: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

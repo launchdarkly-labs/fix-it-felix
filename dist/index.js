@@ -30118,6 +30118,8 @@ class FixitFelix {
         this.inputs = inputs;
         this.context = context;
         this.config = new config_1.ConfigManager(inputs);
+        // Use PAT if provided, otherwise fallback to GITHUB_TOKEN
+        this.token = core.getInput('personal_access_token') || process.env.GITHUB_TOKEN || '';
     }
     async run() {
         const result = {
@@ -30148,8 +30150,14 @@ class FixitFelix {
         core.info(`🛠️ Running fixers: ${fixers.join(', ')}`);
         for (const fixerName of fixers) {
             if (!fixers_1.AVAILABLE_FIXERS.includes(fixerName)) {
-                core.warning(`⚠️ Unknown fixer: ${fixerName}`);
-                continue;
+                const fixerConfig = this.config.getFixerConfig(fixerName);
+                if (!fixerConfig.command ||
+                    !Array.isArray(fixerConfig.command) ||
+                    fixerConfig.command.length === 0) {
+                    core.warning(`⚠️ Unknown fixer: ${fixerName}`);
+                    continue;
+                }
+                core.info(`🔧 Using custom command for fixer: ${fixerName}`);
             }
             // Filter changed files for this fixer based on extensions and configured paths
             const fixerConfig = this.config.getFixerConfig(fixerName);
@@ -30182,6 +30190,11 @@ class FixitFelix {
         }
         // Remove duplicates from changed files
         result.changedFiles = [...new Set(result.changedFiles)];
+        // Don't consider it a failure if we successfully applied any fixes
+        // Even if some fixers had unfixable errors, overall success if any fixes were made
+        if (result.fixesApplied) {
+            result.hasFailures = false;
+        }
         // Commit changes if any and not in dry-run mode
         if (result.fixesApplied && !this.inputs.dryRun) {
             await this.commitChanges(result.changedFiles);
@@ -30198,8 +30211,13 @@ class FixitFelix {
             core.info('Not a pull request event');
             return true;
         }
-        // Skip if PR has skip label
         const pr = this.context.payload.pull_request;
+        // Skip if draft PR and skipDraftPrs is enabled
+        if (this.inputs.skipDraftPrs && pr?.draft) {
+            core.info('PR is a draft and skip_draft_prs is enabled');
+            return true;
+        }
+        // Skip if PR has skip label
         if (pr?.labels?.some((label) => label.name === this.inputs.skipLabel)) {
             core.info(`PR has skip label: ${this.inputs.skipLabel}`);
             return true;
@@ -30230,10 +30248,13 @@ class FixitFelix {
                 core.info(`Last commit was by allowed bot: ${lastAuthor} - proceeding with fixes`);
                 return false;
             }
-            // Check if the last commit was made by Felix or other bots
-            const felixIndicators = ['fix-it-felix', 'felix', 'github-actions', 'bot'];
+            // Check if the last commit was made by Felix or other specific bots
+            const felixIndicators = ['fix-it-felix', 'felix', 'github-actions[bot]'];
             const isLastCommitByFelix = felixIndicators.some(indicator => lastAuthor.toLowerCase().includes(indicator));
-            if (isLastCommitByFelix) {
+            // Also check for generic bot pattern, but only if not an allowed bot
+            const isGenericBot = lastAuthor.toLowerCase().includes('[bot]');
+            const isUnknownBot = isGenericBot && !isAllowedBot;
+            if (isLastCommitByFelix || isUnknownBot) {
                 core.info(`Last commit was by: ${lastAuthor} - potential infinite loop`);
                 return true;
             }
@@ -30259,6 +30280,8 @@ class FixitFelix {
     }
     async commitChanges(changedFiles) {
         try {
+            // Configure git authentication if using PAT
+            await this.configureGitAuth();
             // Ensure we're on the correct branch
             await this.ensureCorrectBranch();
             // Stage the changed files
@@ -30278,14 +30301,74 @@ class FixitFelix {
             }
             // Configure git user if not already configured
             await this.configureGitUser();
+            if (this.inputs.debug) {
+                core.info(`🔍 Debug: Creating commit with message: "${this.inputs.commitMessage}"`);
+            }
             // Create commit
             await exec.exec('git', ['commit', '-m', this.inputs.commitMessage]);
+            if (this.inputs.debug) {
+                core.info('🔍 Debug: Commit created successfully');
+                // Show commit details for debugging
+                let commitHash = '';
+                await exec.exec('git', ['rev-parse', 'HEAD'], {
+                    listeners: {
+                        stdout: (data) => {
+                            commitHash = data.toString().trim();
+                        }
+                    }
+                });
+                core.info(`🔍 Debug: Commit hash: ${commitHash}`);
+                // Show what authentication method will be used for push
+                const patToken = core.getInput('personal_access_token');
+                if (patToken) {
+                    core.info('🔍 Debug: Push will use Personal Access Token authentication');
+                }
+                else {
+                    core.info('🔍 Debug: Push will use GITHUB_TOKEN authentication');
+                }
+            }
             // Push changes with explicit branch
             const pr = this.context.payload.pull_request;
             const branchName = pr?.head?.ref;
             if (branchName) {
                 core.info(`🚀 Pushing changes to branch: ${branchName}`);
-                await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`]);
+                if (this.inputs.debug) {
+                    core.info(`🔍 Debug: About to push to origin/${branchName}`);
+                }
+                try {
+                    await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`]);
+                    if (this.inputs.debug) {
+                        core.info('🔍 Debug: Push successful');
+                        core.info("🔍 Debug: Note: If workflows aren't triggering, check:");
+                        core.info('🔍 Debug:   - Token has "workflow" scope (for Classic PAT)');
+                        core.info('🔍 Debug:   - Token has "Actions: write" permission (for Fine-grained PAT)');
+                        core.info('🔍 Debug:   - Repository allows workflow triggers from pushes');
+                    }
+                }
+                catch (pushError) {
+                    core.warning(`Push failed, attempting to sync with remote and retry: ${pushError}`);
+                    if (this.inputs.debug) {
+                        core.info('🔍 Debug: Initial push failed, attempting rebase and retry');
+                    }
+                    try {
+                        // Use more reliable rebase approach
+                        await exec.exec('git', ['fetch', 'origin']);
+                        await exec.exec('git', ['rebase', `origin/${branchName}`]);
+                        await exec.exec('git', ['push', 'origin', `HEAD:${branchName}`]);
+                        core.info(`✅ Successfully pushed after rebase`);
+                        if (this.inputs.debug) {
+                            core.info('🔍 Debug: Retry push successful after rebase');
+                        }
+                    }
+                    catch (retryError) {
+                        core.error(`Failed to push even after rebase: ${retryError}`);
+                        if (this.inputs.debug) {
+                            core.info('🔍 Debug: Both initial push and retry failed');
+                            core.info('🔍 Debug: This may indicate authentication or permission issues');
+                        }
+                        throw new Error(`Could not push changes: ${retryError}`);
+                    }
+                }
             }
             else {
                 core.warning('Could not determine branch name, using fallback push');
@@ -30296,6 +30379,73 @@ class FixitFelix {
         }
         catch (error) {
             throw new Error(`Failed to commit changes: ${error}`);
+        }
+    }
+    async configureGitAuth() {
+        const patToken = core.getInput('personal_access_token');
+        if (patToken) {
+            if (this.inputs.debug) {
+                core.info('🔍 Debug: Personal Access Token provided');
+                core.info(`🔍 Debug: PAT length: ${patToken.length} characters`);
+                if (patToken.startsWith('ghp_')) {
+                    core.info('🔍 Debug: Token format: Classic Personal Access Token');
+                }
+                else if (patToken.startsWith('github_pat_')) {
+                    core.info('🔍 Debug: Token format: Fine-grained Personal Access Token');
+                }
+                else {
+                    core.info('🔍 Debug: Token format: Unknown format');
+                }
+            }
+            try {
+                // Configure git to use PAT for authentication
+                const pr = this.context.payload.pull_request;
+                if (pr) {
+                    if (this.inputs.debug) {
+                        core.info(`🔍 Debug: Configuring PAT for repo: ${pr.base.repo.owner.login}/${pr.base.repo.name}`);
+                    }
+                    const remoteUrl = `https://x-access-token:${patToken}@github.com/${pr.base.repo.owner.login}/${pr.base.repo.name}.git`;
+                    await exec.exec('git', ['remote', 'set-url', 'origin', remoteUrl]);
+                    core.info('🔑 Configured git to use Personal Access Token');
+                    if (this.inputs.debug) {
+                        core.info('🔍 Debug: PAT authentication configured successfully');
+                    }
+                }
+                else {
+                    core.warning('⚠️ No pull request context available for PAT configuration');
+                }
+            }
+            catch (error) {
+                core.warning(`Could not configure git authentication: ${error}`);
+                if (this.inputs.debug) {
+                    core.info('🔍 Debug: PAT authentication failed, will fall back to GITHUB_TOKEN');
+                }
+            }
+        }
+        else {
+            if (this.inputs.debug) {
+                const githubToken = this.token;
+                if (githubToken) {
+                    core.info('🔍 Debug: Using GITHUB_TOKEN for authentication');
+                    core.info(`🔍 Debug: GITHUB_TOKEN length: ${githubToken.length} characters`);
+                    if (githubToken.startsWith('ghs_')) {
+                        core.info('🔍 Debug: Token format: GitHub Actions token');
+                        core.info('🔍 Debug: ⚠️  Actions tokens have limited workflow triggering permissions');
+                    }
+                    else if (githubToken.startsWith('ghp_')) {
+                        core.info('🔍 Debug: Token format: Classic Personal Access Token');
+                    }
+                    else if (githubToken.startsWith('github_pat_')) {
+                        core.info('🔍 Debug: Token format: Fine-grained Personal Access Token');
+                    }
+                    else {
+                        core.info('🔍 Debug: Token format: Unknown format');
+                    }
+                }
+                else {
+                    core.info('🔍 Debug: No GITHUB_TOKEN available');
+                }
+            }
         }
     }
     async configureGitUser() {
@@ -30332,21 +30482,31 @@ class FixitFelix {
         }
         if (await this.isDetachedHead()) {
             core.info(`🔧 Detected detached HEAD, checking out branch: ${branchName}`);
+            // First, try to fetch the remote branch to check if it exists
             try {
-                // First try to checkout existing branch
+                await exec.exec('git', ['fetch', 'origin', branchName]);
+                core.info(`📥 Fetched remote branch: ${branchName}`);
+                // If fetch succeeds, checkout the branch (which will track remote automatically)
                 await exec.exec('git', ['checkout', branchName]);
-                core.info(`✅ Successfully checked out existing branch: ${branchName}`);
+                core.info(`✅ Successfully checked out remote branch: ${branchName}`);
             }
-            catch (checkoutError) {
-                core.warning(`Failed to checkout existing branch ${branchName}: ${checkoutError}`);
+            catch (fetchError) {
+                core.info(`Remote branch ${branchName} doesn't exist, creating locally`);
                 try {
-                    // Use -B to force-create or reset the branch
-                    await exec.exec('git', ['checkout', '-B', branchName]);
-                    core.info(`✅ Successfully created/reset branch: ${branchName}`);
+                    // Remote branch doesn't exist, try to checkout local branch
+                    await exec.exec('git', ['checkout', branchName]);
+                    core.info(`✅ Successfully checked out existing local branch: ${branchName}`);
                 }
-                catch (createError) {
-                    core.error(`Failed to create branch ${branchName}: ${createError}`);
-                    throw new Error(`Could not ensure correct branch: ${createError}`);
+                catch (checkoutError) {
+                    try {
+                        // No local branch either, create new branch from current HEAD
+                        await exec.exec('git', ['checkout', '-b', branchName]);
+                        core.info(`✅ Successfully created new branch: ${branchName}`);
+                    }
+                    catch (createError) {
+                        core.error(`Failed to create branch ${branchName}: ${createError}`);
+                        throw new Error(`Could not ensure correct branch: ${createError}`);
+                    }
                 }
             }
         }
@@ -30355,12 +30515,12 @@ class FixitFelix {
         }
     }
     async commentOnPR(result) {
-        if (!process.env.GITHUB_TOKEN) {
-            core.warning('No GITHUB_TOKEN available - cannot comment on PR');
+        if (!this.token) {
+            core.warning('No token available - cannot comment on PR');
             return;
         }
         try {
-            const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
+            const octokit = github.getOctokit(this.token);
             const pr = this.context.payload.pull_request;
             if (!pr) {
                 core.warning('No pull request context available');
@@ -30400,16 +30560,16 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`;
         }
         // Try GitHub API first
         try {
-            if (!process.env.GITHUB_TOKEN) {
-                throw new Error('No GITHUB_TOKEN available');
+            if (!this.token) {
+                throw new Error('No token available');
             }
-            const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
-            const files = await octokit.rest.pulls.listFiles({
+            const octokit = github.getOctokit(this.token);
+            const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
                 owner: pr.base.repo.owner.login,
                 repo: pr.base.repo.name,
                 pull_number: pr.number
             });
-            const changedFiles = files.data
+            const changedFiles = files
                 .map((f) => f.filename)
                 .filter((file) => {
                 // Skip deleted files
@@ -30477,6 +30637,21 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`;
             case 'eslint':
                 extensions = fixerConfig.extensions || ['.js', '.jsx', '.ts', '.tsx', '.vue'];
                 break;
+            case 'oxlint':
+                extensions = fixerConfig.extensions || [
+                    '.js',
+                    '.mjs',
+                    '.cjs',
+                    '.jsx',
+                    '.ts',
+                    '.mts',
+                    '.cts',
+                    '.tsx',
+                    '.vue',
+                    '.astro',
+                    '.svelte'
+                ];
+                break;
             case 'prettier':
                 extensions = fixerConfig.extensions || [
                     '.js',
@@ -30500,22 +30675,48 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`;
             default:
                 return files;
         }
+        if (this.inputs.debug) {
+            core.info(`🔍 Debug: Filtering ${files.length} files for ${fixerName}`);
+            core.info(`🔍 Debug: Extensions: ${extensions.join(', ')}`);
+            core.info(`🔍 Debug: Configured paths: ${configuredPaths.join(', ')}`);
+        }
         const filteredFiles = files.filter(file => {
             const ext = path.extname(file).toLowerCase();
             if (!extensions.includes(ext)) {
+                if (this.inputs.debug) {
+                    core.info(`🔍 Debug: Excluded ${file}: extension ${ext} not in allowed extensions`);
+                }
                 return false;
             }
             // Check if file is within configured paths
             // If configuredPaths is ['.'], include all files (default behavior)
             if (configuredPaths.length === 1 && configuredPaths[0] === '.') {
+                if (this.inputs.debug) {
+                    core.info(`🔍 Debug: Included ${file}: matches default path '.'`);
+                }
                 return true;
             }
             // Check if file matches any of the configured paths
-            return configuredPaths.some(configPath => {
-                // Use minimatch for proper glob pattern support
-                return (0, minimatch_1.minimatch)(file, configPath);
+            const pathMatches = configuredPaths.some(configPath => {
+                const matches = (0, minimatch_1.minimatch)(file, configPath);
+                if (this.inputs.debug) {
+                    core.info(`🔍 Debug: Path check for ${file}: ${configPath} -> ${matches}`);
+                }
+                return matches;
             });
+            if (this.inputs.debug) {
+                if (pathMatches) {
+                    core.info(`🔍 Debug: Included ${file}: matches configured paths`);
+                }
+                else {
+                    core.info(`🔍 Debug: Excluded ${file}: no path match`);
+                }
+            }
+            return pathMatches;
         });
+        if (this.inputs.debug) {
+            core.info(`🔍 Debug: Filtered result: ${filteredFiles.length} files`);
+        }
         return filteredFiles;
     }
 }
@@ -30619,25 +30820,39 @@ class BaseFixer {
             };
             const exitCode = await exec.exec(command[0], command.slice(1), options);
             result.output = output;
-            result.success = exitCode === 0;
-            if (!result.success) {
+            result.changedFiles = await this.getChangedFiles();
+            // Consider the fixer successful if it ran (even if it found unfixable issues)
+            // Only mark as failed if it genuinely crashed or couldn't run
+            const didRun = exitCode !== 127 && exitCode !== 126; // 127 = command not found, 126 = not executable
+            const madeChanges = result.changedFiles.length > 0;
+            // Success if the tool ran, regardless of exit code or changes
+            // Repos should have separate lint checks for catching errors; Felix just fixes what it can
+            result.success = didRun;
+            if (exitCode !== 0) {
                 const isCustomCommand = this.hasCustomCommand();
                 const commandStr = command.join(' ');
-                result.error = `${this.name} exited with code ${exitCode}`;
-                if (isCustomCommand) {
-                    core.error(`❌ Custom command failed: ${commandStr}`);
-                    core.error(`💡 Common fixes:`);
-                    core.error(`   • Ensure dependencies are installed (add 'npm ci' step before Felix)`);
-                    core.error(`   • Verify the command works locally: ${commandStr}`);
-                    core.error(`   • Check that npm scripts exist in package.json`);
-                    core.error(`   • Consider using built-in commands instead of custom ones`);
+                if (!result.success) {
+                    result.error = `${this.name} exited with code ${exitCode}`;
+                    if (isCustomCommand) {
+                        core.error(`❌ Custom command failed: ${commandStr}`);
+                        core.error(`💡 Common fixes:`);
+                        core.error(`   • Ensure dependencies are installed (add 'npm ci' step before Felix)`);
+                        core.error(`   • Verify the command works locally: ${commandStr}`);
+                        core.error(`   • Check that npm scripts exist in package.json`);
+                        core.error(`   • Consider using built-in commands instead of custom ones`);
+                    }
+                    else {
+                        core.error(`❌ ${this.name} failed with exit code ${exitCode}`);
+                    }
+                }
+                else if (madeChanges) {
+                    core.info(`✨ ${this.name} fixed ${result.changedFiles.length} files (exit code ${exitCode} with unfixable issues)`);
                 }
                 else {
-                    core.error(`❌ ${this.name} failed with exit code ${exitCode}`);
+                    core.info(`✨ ${this.name} ran successfully but found unfixable issues (exit code ${exitCode})`);
                 }
                 // Note: Don't call core.setFailed() here as it would prevent other fixers from running
             }
-            result.changedFiles = await this.getChangedFiles();
         }
         catch (error) {
             result.error = error instanceof Error ? error.message : String(error);
@@ -30665,6 +30880,39 @@ class BaseFixer {
     }
 }
 exports.BaseFixer = BaseFixer;
+
+
+/***/ }),
+
+/***/ 7138:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CustomFixer = void 0;
+const base_1 = __nccwpck_require__(9164);
+class CustomFixer extends base_1.BaseFixer {
+    constructor(name, config = {}, paths = ['.']) {
+        super(name, config, paths);
+    }
+    async isAvailable() {
+        // Custom fixers are always "available" since they rely on user-provided commands
+        return true;
+    }
+    getCommand() {
+        // Custom fixers must have a custom command
+        if (!this.hasCustomCommand()) {
+            throw new Error(`Custom fixer ${this.name} requires a command to be configured`);
+        }
+        return this.getCustomCommand();
+    }
+    getExtensions() {
+        // Default to common file extensions, but allow override via config
+        return this.config.extensions || ['.js', '.jsx', '.ts', '.tsx', '.json', '.md'];
+    }
+}
+exports.CustomFixer = CustomFixer;
 
 
 /***/ }),
@@ -30772,6 +31020,8 @@ Object.defineProperty(exports, "BaseFixer", ({ enumerable: true, get: function (
 const eslint_1 = __nccwpck_require__(4592);
 const prettier_1 = __nccwpck_require__(7294);
 const markdownlint_1 = __nccwpck_require__(8294);
+const oxlint_1 = __nccwpck_require__(787);
+const custom_1 = __nccwpck_require__(7138);
 function createFixer(name, config = {}, paths = ['.'], configManager) {
     switch (name.toLowerCase()) {
         case 'eslint':
@@ -30780,11 +31030,17 @@ function createFixer(name, config = {}, paths = ['.'], configManager) {
             return new prettier_1.PrettierFixer(config, paths, configManager);
         case 'markdownlint':
             return new markdownlint_1.MarkdownLintFixer(config, paths);
+        case 'oxlint':
+            return new oxlint_1.OxlintFixer(config, paths);
         default:
+            // If not a built-in fixer but has a custom command, create a CustomFixer
+            if (config.command && Array.isArray(config.command) && config.command.length > 0) {
+                return new custom_1.CustomFixer(name, config, paths);
+            }
             return null;
     }
 }
-exports.AVAILABLE_FIXERS = ['eslint', 'prettier', 'markdownlint'];
+exports.AVAILABLE_FIXERS = ['eslint', 'prettier', 'markdownlint', 'oxlint'];
 
 
 /***/ }),
@@ -30884,6 +31140,131 @@ class MarkdownLintFixer extends base_1.BaseFixer {
     }
 }
 exports.MarkdownLintFixer = MarkdownLintFixer;
+
+
+/***/ }),
+
+/***/ 787:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.OxlintFixer = void 0;
+const fs = __importStar(__nccwpck_require__(9896));
+const exec = __importStar(__nccwpck_require__(5236));
+const base_1 = __nccwpck_require__(9164);
+class OxlintFixer extends base_1.BaseFixer {
+    constructor(config = {}, paths = ['.']) {
+        super('oxlint', config, paths);
+    }
+    async isAvailable() {
+        try {
+            // Check if oxlint is installed locally
+            if (fs.existsSync('node_modules/.bin/oxlint')) {
+                return true;
+            }
+            // Check if oxlint is globally available
+            await exec.exec('npx', ['oxlint', '--version'], { silent: true });
+            return true;
+        }
+        catch {
+            return false;
+        }
+    }
+    getCommand() {
+        // Use custom command if provided
+        if (this.hasCustomCommand()) {
+            return this.getCustomCommand();
+        }
+        const cmd = ['npx', 'oxlint'];
+        // Add config file if specified
+        if (this.config.configFile) {
+            cmd.push('--config', this.config.configFile);
+        }
+        // Add fix flag
+        cmd.push('--fix');
+        // Add rule configurations
+        if (this.config.allow && Array.isArray(this.config.allow)) {
+            this.config.allow.forEach((rule) => {
+                cmd.push('-A', rule);
+            });
+        }
+        if (this.config.warn && Array.isArray(this.config.warn)) {
+            this.config.warn.forEach((rule) => {
+                cmd.push('-W', rule);
+            });
+        }
+        if (this.config.deny && Array.isArray(this.config.deny)) {
+            this.config.deny.forEach((rule) => {
+                cmd.push('-D', rule);
+            });
+        }
+        // Add plugin flags
+        if (this.config.importPlugin) {
+            cmd.push('--import-plugin');
+        }
+        if (this.config.reactPlugin) {
+            cmd.push('--react-plugin');
+        }
+        // Add tsconfig if specified
+        if (this.config.tsconfig) {
+            cmd.push('--tsconfig', this.config.tsconfig);
+        }
+        // Add configured paths
+        cmd.push(...this.paths);
+        return cmd;
+    }
+    getExtensions() {
+        return (this.config.extensions || [
+            '.js',
+            '.mjs',
+            '.cjs',
+            '.jsx',
+            '.ts',
+            '.mts',
+            '.cts',
+            '.tsx',
+            '.vue',
+            '.astro',
+            '.svelte'
+        ]);
+    }
+}
+exports.OxlintFixer = OxlintFixer;
 
 
 /***/ }),
@@ -31079,7 +31460,10 @@ async function run() {
             dryRun: core.getBooleanInput('dry_run'),
             skipLabel: core.getInput('skip_label'),
             allowedBots: core.getInput('allowed_bots'),
-            paths: core.getInput('paths')
+            paths: core.getInput('paths'),
+            personalAccessToken: core.getInput('personal_access_token'),
+            debug: core.getBooleanInput('debug'),
+            skipDraftPrs: core.getBooleanInput('skip_draft_prs')
         };
         const felix = new felix_1.FixitFelix(inputs, github.context);
         const result = await felix.run();
