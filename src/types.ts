@@ -11,30 +11,38 @@ export interface FelixInputs {
   skipDraftPrs: boolean
 }
 
+export interface FixerConfig {
+  name?: string
+  configFile?: string
+  extensions?: string[]
+  paths?: string[]
+  command?: string[]
+  appendPaths?: boolean
+  /** Environment variables to set when executing custom commands */
+  env?: Record<string, string>
+  // oxlint-specific properties
+  allow?: string[]
+  warn?: string[]
+  deny?: string[]
+  importPlugin?: boolean
+  reactPlugin?: boolean
+  tsconfig?: string
+}
+
+export interface InlineFixerConfig extends FixerConfig {
+  name: string // Required for inline configurations
+}
+
+export type FixerItem = string | InlineFixerConfig
+
 export interface FelixConfig {
-  fixers?: string[]
+  fixers?: FixerItem[]
   paths?: string[]
   ignore?: string[]
-  eslint?: {
-    configFile?: string
-    extensions?: string[]
-    paths?: string[]
-    command?: string[]
-    appendPaths?: boolean
-  }
-  prettier?: {
-    configFile?: string
-    extensions?: string[]
-    paths?: string[]
-    command?: string[]
-    appendPaths?: boolean
-  }
-  markdownlint?: {
-    configFile?: string
-    paths?: string[]
-    command?: string[]
-    appendPaths?: boolean
-  }
+  // Legacy support - these will be deprecated
+  eslint?: FixerConfig
+  prettier?: FixerConfig
+  markdownlint?: FixerConfig
 }
 
 export interface FixerResult {

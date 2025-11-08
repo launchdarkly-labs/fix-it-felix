@@ -6,7 +6,7 @@ import * as path from 'path'
 import { Context } from '@actions/github/lib/context'
 import { ConfigManager } from './config'
 import { createFixer, AVAILABLE_FIXERS } from './fixers'
-import { FelixInputs, FelixResult } from './types'
+import { FelixInputs, FelixResult, FixerConfig } from './types'
 import { minimatch } from 'minimatch'
 
 export class FixitFelix {
@@ -604,7 +604,7 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
   private filterFilesByFixer(
     files: string[],
     fixerName: string,
-    fixerConfig: any,
+    fixerConfig: FixerConfig,
     configuredPaths: string[]
   ): string[] {
     // Get the extensions this fixer handles

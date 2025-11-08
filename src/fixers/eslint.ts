@@ -1,9 +1,10 @@
 import * as fs from 'fs'
 import * as exec from '@actions/exec'
 import { BaseFixer } from './base'
+import { FixerConfig } from '../types'
 
 export class ESLintFixer extends BaseFixer {
-  constructor(config: any = {}, paths: string[] = ['.']) {
+  constructor(config: FixerConfig = {}, paths: string[] = ['.']) {
     super('eslint', config, paths)
   }
 

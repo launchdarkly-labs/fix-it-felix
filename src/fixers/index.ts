@@ -5,12 +5,13 @@ import { MarkdownLintFixer } from './markdownlint'
 import { OxlintFixer } from './oxlint'
 import { CustomFixer } from './custom'
 import { ConfigManager } from '../config'
+import { FixerConfig } from '../types'
 
 export { BaseFixer }
 
 export function createFixer(
   name: string,
-  config: any = {},
+  config: FixerConfig = {},
   paths: string[] = ['.'],
   configManager?: ConfigManager
 ): BaseFixer | null {

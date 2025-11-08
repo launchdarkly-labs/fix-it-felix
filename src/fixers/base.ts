@@ -1,21 +1,23 @@
 import * as core from '@actions/core'
 import * as exec from '@actions/exec'
-import { FixerResult } from '../types'
+import { FixerResult, FixerConfig } from '../types'
 
 export abstract class BaseFixer {
   protected name: string
-  protected config: any
+  protected config: FixerConfig
   protected paths: string[]
 
-  constructor(name: string, config: any = {}, paths: string[] = ['.']) {
+  constructor(name: string, config: FixerConfig = {}, paths: string[] = ['.']) {
     this.name = name
     this.config = config
     this.paths = paths
   }
 
   protected hasCustomCommand(): boolean {
-    return (
-      this.config.command && Array.isArray(this.config.command) && this.config.command.length > 0
+    return !!(
+      this.config.command &&
+      Array.isArray(this.config.command) &&
+      this.config.command.length > 0
     )
   }
 
@@ -33,10 +35,10 @@ export abstract class BaseFixer {
       this.paths.length > 0 &&
       !(this.paths.length === 1 && this.paths[0] === '.')
     ) {
-      return [...this.config.command, ...this.paths]
+      return [...this.config.command!, ...this.paths]
     }
 
-    return [...this.config.command]
+    return [...this.config.command!]
   }
 
   abstract isAvailable(): Promise<boolean>
