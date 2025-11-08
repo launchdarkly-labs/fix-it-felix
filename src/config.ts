@@ -1,7 +1,6 @@
 import * as core from '@actions/core'
 import * as fs from 'fs'
-import * as path from 'path'
-import { FelixConfig, FelixInputs, FixerConfig, FixerItem, InlineFixerConfig } from './types'
+import { FelixConfig, FelixInputs, FixerConfig, FixerItem } from './types'
 
 export class ConfigManager {
   private inputs: FelixInputs

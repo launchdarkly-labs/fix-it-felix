@@ -18,6 +18,7 @@ export interface FixerConfig {
   paths?: string[]
   command?: string[]
   appendPaths?: boolean
+  /** Environment variables to set when executing custom commands */
   env?: Record<string, string>
   // oxlint-specific properties
   allow?: string[]
