@@ -664,7 +664,9 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
     if (this.inputs.debug) {
       core.info(`🔍 Debug: Filtering ${files.length} files for ${fixerName}`)
       core.info(`🔍 Debug: Extensions: ${extensions.join(', ')}`)
-      core.info(`🔍 Debug: Ignore patterns (${ignorePatterns.length}): ${ignorePatterns.join(', ')}`)
+      core.info(
+        `🔍 Debug: Ignore patterns (${ignorePatterns.length}): ${ignorePatterns.join(', ')}`
+      )
       core.info(`🔍 Debug: Configured paths: ${configuredPaths.join(', ')}`)
     }
 
