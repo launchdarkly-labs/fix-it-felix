@@ -88,3 +88,12 @@ export class ConfigManager {
       .filter(b => b.length > 0)
   }
 }
+
+// Test-only helper: create a ConfigManager instance without loading anything from the filesystem.
+// This lets tests inject inputs and config directly.
+export function testConfigManager(inputs: FelixInputs, config: FelixConfig): ConfigManager {
+  const instance = Object.create(ConfigManager.prototype) as ConfigManager
+  ;(instance as any).inputs = inputs
+  ;(instance as any).config = config
+  return instance
+}

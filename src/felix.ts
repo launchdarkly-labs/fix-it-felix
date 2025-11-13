@@ -653,7 +653,8 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
         extensions = fixerConfig.extensions || ['.md', '.markdown']
         break
       default:
-        return files
+        extensions = fixerConfig.extensions || []
+        break
     }
 
     const isIgnored = (filePath: string): boolean => {
@@ -677,7 +678,7 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
         return false
       }
 
-      if (!extensions.includes(ext)) {
+      if (extensions.length > 0 && !extensions.includes(ext)) {
         if (this.inputs.debug) {
           core.info(`🔍 Debug: Excluded ${file}: extension ${ext} not in allowed extensions`)
         }
