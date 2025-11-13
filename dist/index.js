@@ -29962,6 +29962,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ConfigManager = void 0;
+exports.testConfigManager = testConfigManager;
 const core = __importStar(__nccwpck_require__(7484));
 const fs = __importStar(__nccwpck_require__(9896));
 class ConfigManager {
@@ -30021,6 +30022,12 @@ class ConfigManager {
     getIgnorePatterns() {
         return this.config.ignore || ['node_modules/**', 'dist/**', 'build/**', '.git/**'];
     }
+    getFixerIgnorePatterns(fixerName) {
+        const globalIgnores = this.getIgnorePatterns();
+        const fixerConfig = this.getFixerConfig(fixerName);
+        const localIgnores = Array.isArray(fixerConfig.ignore) ? fixerConfig.ignore : [];
+        return [...globalIgnores, ...localIgnores];
+    }
     getFixerConfig(fixerName) {
         return this.config[fixerName] || {};
     }
@@ -30032,6 +30039,14 @@ class ConfigManager {
     }
 }
 exports.ConfigManager = ConfigManager;
+// Test-only helper: create a ConfigManager instance without loading anything from the filesystem.
+// This lets tests inject inputs and config directly.
+function testConfigManager(inputs, config) {
+    const instance = Object.create(ConfigManager.prototype);
+    instance.inputs = inputs;
+    instance.config = config;
+    return instance;
+}
 
 
 /***/ }),
@@ -30129,6 +30144,7 @@ class FixitFelix {
                     continue;
                 }
                 core.info(`🔧 Using custom command for fixer: ${fixerName}`);
+                core.info("NEW CODE DROPPED");
             }
             // Filter changed files for this fixer based on extensions and configured paths
             const fixerConfig = this.config.getFixerConfig(fixerName);
@@ -30602,6 +30618,8 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`;
         return this.config.getPaths();
     }
     filterFilesByFixer(files, fixerName, fixerConfig, configuredPaths) {
+        // Gather ignore patterns (global + fixer-level)
+        const ignorePatterns = this.config.getFixerIgnorePatterns(fixerName);
         // Get the extensions this fixer handles
         let extensions = [];
         switch (fixerName) {
@@ -30644,16 +30662,27 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`;
                 extensions = fixerConfig.extensions || ['.md', '.markdown'];
                 break;
             default:
-                return files;
+                extensions = fixerConfig.extensions || [];
+                break;
         }
+        const isIgnored = (filePath) => {
+            return ignorePatterns.some(pattern => (0, minimatch_1.minimatch)(filePath, pattern));
+        };
         if (this.inputs.debug) {
             core.info(`🔍 Debug: Filtering ${files.length} files for ${fixerName}`);
             core.info(`🔍 Debug: Extensions: ${extensions.join(', ')}`);
+            core.info(`🔍 Debug: Ignore patterns (${ignorePatterns.length}): ${ignorePatterns.join(', ')}`);
             core.info(`🔍 Debug: Configured paths: ${configuredPaths.join(', ')}`);
         }
         const filteredFiles = files.filter(file => {
             const ext = path.extname(file).toLowerCase();
-            if (!extensions.includes(ext)) {
+            if (isIgnored(file)) {
+                if (this.inputs.debug) {
+                    core.info(`🔍 Debug: Excluded ${file}: matches ignore patterns`);
+                }
+                return false;
+            }
+            if (extensions.length > 0 && !extensions.includes(ext)) {
                 if (this.inputs.debug) {
                     core.info(`🔍 Debug: Excluded ${file}: extension ${ext} not in allowed extensions`);
                 }
@@ -31305,7 +31334,7 @@ class PrettierFixer extends base_1.BaseFixer {
         if (!this.configManager) {
             return paths;
         }
-        const ignorePatterns = this.configManager.getIgnorePatterns();
+        const ignorePatterns = this.configManager.getFixerIgnorePatterns(this.name);
         return paths.filter(path => {
             const cleanPath = path.endsWith('/') ? path.slice(0, -1) : path;
             // Check if this path matches any ignore pattern
