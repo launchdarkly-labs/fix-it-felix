@@ -32,7 +32,7 @@ export class PrettierFixer extends BaseFixer {
       return paths
     }
 
-    const ignorePatterns = this.configManager.getIgnorePatterns()
+    const ignorePatterns = this.configManager.getFixerIgnorePatterns(this.name)
     return paths.filter(path => {
       const cleanPath = path.endsWith('/') ? path.slice(0, -1) : path
 

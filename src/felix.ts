@@ -607,6 +607,9 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
     fixerConfig: any,
     configuredPaths: string[]
   ): string[] {
+    // Gather ignore patterns (global + fixer-level)
+    const ignorePatterns = this.config.getFixerIgnorePatterns(fixerName)
+
     // Get the extensions this fixer handles
     let extensions: string[] = []
 
@@ -653,14 +656,26 @@ To apply these fixes, remove the \`dry_run: true\` option from your workflow.`
         return files
     }
 
+    const isIgnored = (filePath: string): boolean => {
+      return ignorePatterns.some(pattern => minimatch(filePath, pattern))
+    }
+
     if (this.inputs.debug) {
       core.info(`🔍 Debug: Filtering ${files.length} files for ${fixerName}`)
       core.info(`🔍 Debug: Extensions: ${extensions.join(', ')}`)
+      core.info(`🔍 Debug: Ignore patterns (${ignorePatterns.length}): ${ignorePatterns.join(', ')}`)
       core.info(`🔍 Debug: Configured paths: ${configuredPaths.join(', ')}`)
     }
 
     const filteredFiles = files.filter(file => {
       const ext = path.extname(file).toLowerCase()
+
+      if (isIgnored(file)) {
+        if (this.inputs.debug) {
+          core.info(`🔍 Debug: Excluded ${file}: matches ignore patterns`)
+        }
+        return false
+      }
 
       if (!extensions.includes(ext)) {
         if (this.inputs.debug) {

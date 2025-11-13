@@ -70,6 +70,13 @@ export class ConfigManager {
     return this.config.ignore || ['node_modules/**', 'dist/**', 'build/**', '.git/**']
   }
 
+  getFixerIgnorePatterns(fixerName: string): string[] {
+    const globalIgnores = this.getIgnorePatterns()
+    const fixerConfig = this.getFixerConfig(fixerName)
+    const localIgnores = Array.isArray(fixerConfig.ignore) ? fixerConfig.ignore : []
+    return [...globalIgnores, ...localIgnores]
+  }
+
   getFixerConfig(fixerName: string): any {
     return this.config[fixerName as keyof FelixConfig] || {}
   }
