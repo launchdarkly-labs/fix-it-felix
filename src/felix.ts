@@ -68,7 +68,6 @@ export class FixitFelix {
           continue
         }
         core.info(`🔧 Using custom command for fixer: ${fixerName}`)
-        core.info("NEW CODE DROPPED")
       }
 
       // Filter changed files for this fixer based on extensions and configured paths
