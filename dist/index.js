@@ -29962,7 +29962,6 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ConfigManager = void 0;
-exports.testConfigManager = testConfigManager;
 const core = __importStar(__nccwpck_require__(7484));
 const fs = __importStar(__nccwpck_require__(9896));
 class ConfigManager {
@@ -30039,14 +30038,6 @@ class ConfigManager {
     }
 }
 exports.ConfigManager = ConfigManager;
-// Test-only helper: create a ConfigManager instance without loading anything from the filesystem.
-// This lets tests inject inputs and config directly.
-function testConfigManager(inputs, config) {
-    const instance = Object.create(ConfigManager.prototype);
-    instance.inputs = inputs;
-    instance.config = config;
-    return instance;
-}
 
 
 /***/ }),
@@ -30144,7 +30135,6 @@ class FixitFelix {
                     continue;
                 }
                 core.info(`🔧 Using custom command for fixer: ${fixerName}`);
-                core.info("NEW CODE DROPPED");
             }
             // Filter changed files for this fixer based on extensions and configured paths
             const fixerConfig = this.config.getFixerConfig(fixerName);
