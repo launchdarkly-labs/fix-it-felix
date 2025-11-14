@@ -1,5 +1,5 @@
 {
-  "fixers": ["eslint", "prettier"],
+  "fixers": ["eslint", "prettier", "wc"],
   "paths": ["src/**", "examples/**", "tests/**", "*.md", "jest.config.js", "test-felix.js"],
   "ignore": ["node_modules/**", "dist/**", "build/**", ".git/**", "coverage/**", "test-files/**", "package.json", "package-lock.json", ".github/**"],
   "_comment": "Using custom commands to demonstrate the feature. In production, ensure 'npm ci' runs before Felix.",
@@ -10,5 +10,10 @@
   "prettier": {
     "command": ["npm", "run", "format:fix"],
     "appendPaths": false
+  },
+  "wc": {
+    "command": ["wc", "-l"],
+    "ignore": [".felixrc.json"],
+    "paths": ["."]
   }
 }

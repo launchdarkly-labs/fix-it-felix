@@ -21,6 +21,7 @@ export interface FelixConfig {
     paths?: string[]
     command?: string[]
     appendPaths?: boolean
+    ignore?: string[]
   }
   prettier?: {
     configFile?: string
@@ -28,12 +29,14 @@ export interface FelixConfig {
     paths?: string[]
     command?: string[]
     appendPaths?: boolean
+    ignore?: string[]
   }
   markdownlint?: {
     configFile?: string
     paths?: string[]
     command?: string[]
     appendPaths?: boolean
+    ignore?: string[]
   }
 }
 
