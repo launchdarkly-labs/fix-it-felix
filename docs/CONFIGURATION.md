@@ -94,6 +94,7 @@ Create a `.felixrc.json` file in your repository root for advanced configuration
 | `fixers` | `string[]` | List of fixers to run                   | `[]`    |
 | `paths`  | `string[]` | Global paths for all fixers             | `["."]` |
 | `ignore` | `string[]` | Glob patterns to ignore                 | See below |
+| `allowed_bots` | `string[]` | Bot authors that bypass infinite loop protection; merged with the `allowed_bots` action input | `[]` |
 
 **Default ignore patterns:**
 ```json

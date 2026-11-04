@@ -101,6 +101,46 @@ describe('ConfigManager', () => {
     })
   })
 
+  describe('getAllowedBots()', () => {
+    it('should return allowed bots from config file', () => {
+      mockFs.existsSync.mockReturnValue(true)
+      mockFs.readFileSync.mockReturnValue(
+        JSON.stringify({ allowed_bots: ['dependabot[bot]', 'renovate[bot]'] })
+      )
+
+      const manager = new ConfigManager(defaultInputs)
+      expect(manager.getAllowedBots()).toEqual(['dependabot[bot]', 'renovate[bot]'])
+    })
+
+    it('should merge action input and config file bots without duplicates', () => {
+      const inputs = { ...defaultInputs, allowedBots: 'dependabot[bot], custom[bot]' }
+      mockFs.existsSync.mockReturnValue(true)
+      mockFs.readFileSync.mockReturnValue(
+        JSON.stringify({ allowed_bots: ['renovate[bot]', 'dependabot[bot]'] })
+      )
+
+      const manager = new ConfigManager(inputs)
+      expect(manager.getAllowedBots()).toEqual(['dependabot[bot]', 'custom[bot]', 'renovate[bot]'])
+    })
+
+    it('should return an empty list when neither source configures bots', () => {
+      mockFs.existsSync.mockReturnValue(true)
+      mockFs.readFileSync.mockReturnValue(JSON.stringify({}))
+
+      const manager = new ConfigManager(defaultInputs)
+      expect(manager.getAllowedBots()).toEqual([])
+    })
+
+    it('should ignore a non-array allowed_bots value in the config file', () => {
+      const inputs = { ...defaultInputs, allowedBots: 'dependabot[bot]' }
+      mockFs.existsSync.mockReturnValue(true)
+      mockFs.readFileSync.mockReturnValue(JSON.stringify({ allowed_bots: 'renovate[bot]' }))
+
+      const manager = new ConfigManager(inputs)
+      expect(manager.getAllowedBots()).toEqual(['dependabot[bot]'])
+    })
+  })
+
   describe('getPaths()', () => {
     it('should return paths from config file when available', () => {
       const configContent = {

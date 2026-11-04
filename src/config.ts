@@ -82,9 +82,10 @@ export class ConfigManager {
   }
 
   getAllowedBots(): string[] {
-    return this.inputs.allowedBots
-      .split(',')
-      .map(b => b.trim())
-      .filter(b => b.length > 0)
+    // Action input and config file are merged; either source can allow a bot
+    const fromInput = this.inputs.allowedBots.split(',')
+    const fromConfig = Array.isArray(this.config.allowed_bots) ? this.config.allowed_bots : []
+    const bots = [...fromInput, ...fromConfig].map(b => b.trim()).filter(b => b.length > 0)
+    return [...new Set(bots)]
   }
 }
