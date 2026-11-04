@@ -170,7 +170,7 @@ Use your own npm scripts instead of built-in commands:
 - Detects commits made by Felix or other bots
 - Skips processing if last commit was automated
 - Prevents endless fix-commit cycles
-- **Exception**: Bots listed in `allowed_bots` will bypass this protection
+- **Exception**: Bots listed in `allowed_bots` (the action input, the `.felixrc.json` key, or both) will bypass this protection
 
 ### Fork Handling
 

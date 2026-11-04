@@ -15,6 +15,7 @@ export interface FelixConfig {
   fixers?: string[]
   paths?: string[]
   ignore?: string[]
+  allowed_bots?: string[]
   eslint?: {
     configFile?: string
     extensions?: string[]
